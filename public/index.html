@@ -6,9 +6,9 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="G730">
-<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>G730 Performance</title>
-<link rel="manifest" href="/manifest.json">
+<link rel="manifest" href="manifest.json">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
   :root {
@@ -590,14 +590,14 @@ async function removeSession(filename) {
 // ─── Auto-bootstrap from server ───
 async function bootstrapFromServer() {
   try {
-    const res = await fetch('/sessions.json');
+    const res = await fetch('sessions.json');
     if (!res.ok) return false;
     const files = await res.json();
     if (!files.length) return false;
     document.getElementById('loadingOverlay').innerHTML = '<div>Loading sessions...</div><div style="font-size:12px;color:var(--text3)">0 / ' + files.length + '</div>';
     let loaded = 0;
     for (const filename of files) {
-      const r = await fetch('/sessions/' + encodeURIComponent(filename));
+      const r = await fetch('sessions/' + encodeURIComponent(filename));
       if (!r.ok) continue;
       const content = await r.text();
       await saveSession(filename, content);
@@ -1055,7 +1055,7 @@ async function setBallType(date, type) {
 // ─── Server Sync ───
 async function syncFromServer() {
   try {
-    const res = await fetch('/sessions.json');
+    const res = await fetch('sessions.json');
     if (!res.ok) { showToast('Server not reachable'); return; }
     const files = await res.json();
     const stored = await getAllSessions();
@@ -1064,7 +1064,7 @@ async function syncFromServer() {
     if (!newFiles.length) { showToast('Already up to date'); return; }
     let loaded = 0;
     for (const filename of newFiles) {
-      const r = await fetch('/sessions/' + encodeURIComponent(filename));
+      const r = await fetch('sessions/' + encodeURIComponent(filename));
       if (!r.ok) continue;
       const content = await r.text();
       await saveSession(filename, content);
@@ -1091,7 +1091,7 @@ function showInstallBanner() {
 }
 function dismissInstallBanner() { const b=document.querySelector('.install-banner'); if(b)b.remove(); localStorage.setItem('g730-install-dismissed','1'); }
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(() => {});
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 init();
 showInstallBanner();
 </script>
