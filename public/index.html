@@ -257,7 +257,7 @@
     <div class="login-sub">Golf Sim Performance Dashboard</div>
     <div id="profileTiles" class="profile-tiles"></div>
     <div id="loginForm">
-      <input class="login-input" id="loginUser" placeholder="Username" autocapitalize="off" autocorrect="off">
+      <input class="login-input" id="loginUser" type="email" placeholder="Email address" autocapitalize="off" autocorrect="off">
       <input class="login-input" id="loginName" placeholder="Golfer Name" style="display:none">
       <input class="login-input" id="loginPass" type="password" placeholder="Password">
       <button class="login-btn" id="loginBtn" onclick="handleLogin()">Sign In</button>
@@ -355,7 +355,7 @@
     <div id="tab-profile" class="section-hidden">
       <div class="card">
         <div class="card-title">Golfer Info</div>
-        <div class="profile-field"><label>Username</label><input id="profUsername" disabled></div>
+        <div class="profile-field"><label>Email</label><input id="profUsername" disabled></div>
         <div class="profile-field"><label>Golfer Name</label><input id="profGolferName" onchange="saveProfileField('golferName', this.value)"></div>
         <div class="profile-field"><label>Launch Sim</label>
           <select id="profLaunchSim" onchange="saveProfileField('launchSim', this.value)">
@@ -432,7 +432,7 @@ function lsSet(base, value) { localStorage.setItem(lsKey(base), value); }
 
 async function createProfile(username, golferName, password) {
   const profiles = getProfiles();
-  if (profiles[username]) throw new Error('Username already exists');
+  if (profiles[username]) throw new Error('Email already registered');
   profiles[username] = {
     username, golferName, passwordHash: await sha256(password),
     createdAt: new Date().toISOString(),
@@ -445,7 +445,7 @@ async function createProfile(username, golferName, password) {
 async function authenticate(username, password) {
   const profiles = getProfiles();
   const p = profiles[username];
-  if (!p) throw new Error('User not found');
+  if (!p) throw new Error('Email not found');
   if (p.passwordHash !== await sha256(password)) throw new Error('Wrong password');
   return p;
 }
@@ -468,7 +468,7 @@ function renderProfileTiles() {
     const p = profiles[u];
     return `<div class="profile-tile" onclick="quickLogin('${u}')">
       <div class="profile-tile-name">${p.golferName || u}</div>
-      <div class="profile-tile-user">@${u}</div>
+      <div class="profile-tile-user">${u}</div>
     </div>`;
   }).join('');
 }
@@ -486,13 +486,13 @@ async function handleLogin() {
   const golferName = document.getElementById('loginName').value.trim();
   const errorEl = document.getElementById('loginError');
 
-  if (!username) { errorEl.textContent = 'Username required'; return; }
+  if (!username) { errorEl.textContent = 'Email required'; return; }
   if (!password) { errorEl.textContent = 'Password required'; return; }
 
   try {
     if (loginMode === 'register') {
       if (!golferName) { errorEl.textContent = 'Golfer name required'; return; }
-      if (username.length < 2) { errorEl.textContent = 'Username too short'; return; }
+      if (!username.includes('@') || !username.includes('.')) { errorEl.textContent = 'Valid email required'; return; }
       if (password.length < 4) { errorEl.textContent = 'Password too short (min 4)'; return; }
       await createProfile(username, golferName, password);
     } else {
