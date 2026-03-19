@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d1117">
 <meta name="apple-mobile-web-app-title" content="G730">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <title>G730 Performance</title>
@@ -12,10 +13,12 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
   :root {
-    --bg: #0f1a0f; --bg2: #162016; --bg3: #1b2c1b;
-    --text: #e8f0e8; --text2: #a0b8a0; --text3: #6b8a6b;
-    --accent: #8ac18a; --accent2: #5a9a5a; --blue: #6ba3c1; --gold: #c1a86b;
-    --border: #2a3f2a; --red: #c16b6b; --orange: #c19a5a;
+    --bg: #0d1117; --bg2: #161b22; --bg3: #1c2333;
+    --text: #e6edf3; --text2: #8b949e; --text3: #6e7681;
+    --accent: #58a6ff; --accent2: #388bfd; --green: #3fb950; --green2: #238636;
+    --blue: #58a6ff; --gold: #d29922; --teal: #2ea99a;
+    --border: #30363d; --red: #f85149; --orange: #d18616;
+    --purple: #bc8cff; --pink: #f778ba;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -34,7 +37,7 @@
     color: var(--accent); padding: 6px 12px; font-size: 12px; font-weight: 600;
     cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px;
   }
-  .hdr-btn:active { background: var(--accent2); color: var(--bg); }
+  .hdr-btn:active { background: var(--accent2); color: #fff; }
   .hdr-btn.import-btn { border-color: var(--accent); }
   .subtitle { font-size: 11px; color: var(--text3); margin-bottom: 12px; }
 
@@ -43,7 +46,7 @@
   .filter-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 2px; }
   .filter-btn { padding: 5px 10px; font-size: 11px; font-weight: 600; border-radius: 8px;
     background: var(--bg3); color: var(--text3); border: 1px solid var(--border); cursor: pointer; }
-  .filter-btn.active { background: var(--accent2); color: var(--bg); border-color: var(--accent); }
+  .filter-btn.active { background: var(--accent2); color: #fff; border-color: var(--accent); }
   .filter-select {
     background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
     color: var(--text2); padding: 5px 8px; font-size: 11px; font-weight: 600;
@@ -52,15 +55,21 @@
   .filter-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
 
   .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
-  .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; }
-  .kpi-value { font-size: 22px; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; border-top: 2px solid var(--border); }
+  .kpi:nth-child(1) { border-top-color: var(--green); }
+  .kpi:nth-child(2) { border-top-color: var(--blue); }
+  .kpi:nth-child(3) { border-top-color: var(--gold); }
+  .kpi:nth-child(4) { border-top-color: var(--teal); }
+  .kpi:nth-child(5) { border-top-color: var(--purple); }
+  .kpi:nth-child(6) { border-top-color: var(--pink); }
+  .kpi-value { font-size: 22px; font-weight: 700; color: var(--green); font-variant-numeric: tabular-nums; }
   .kpi-label { font-size: 10px; color: var(--text3); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
   .kpi-sub { font-size: 10px; color: var(--text2); margin-top: 2px; }
 
   .tabs { display: flex; gap: 4px; margin-bottom: 16px; background: var(--bg2); border-radius: 10px; padding: 3px; overflow-x: auto; }
   .tab { flex: 1; padding: 8px 6px; text-align: center; font-size: 11px; font-weight: 600; border-radius: 8px;
     background: transparent; color: var(--text3); border: none; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-  .tab.active { background: var(--bg3); color: var(--accent); }
+  .tab.active { background: var(--bg3); color: var(--blue); }
 
   .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 12px; }
   .card-title { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text2); }
@@ -72,7 +81,7 @@
   .yardage-table td { padding: 10px 8px; text-align: right; font-variant-numeric: tabular-nums; font-size: 14px;
     border-bottom: 1px solid var(--border); }
   .yardage-table td:first-child { text-align: left; font-weight: 600; }
-  .yardage-table .carry-cell { font-weight: 700; color: var(--accent); font-size: 16px; }
+  .yardage-table .carry-cell { font-weight: 700; color: var(--green); font-size: 16px; }
   .yardage-table .gap-cell { color: var(--text3); font-size: 12px; }
   .yardage-table .estimated { opacity: 0.5; font-style: italic; }
   .est-badge { display: inline-block; font-size: 8px; background: var(--border); color: var(--text3);
@@ -96,7 +105,7 @@
   .trend-values { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
   .trend-current { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
   .trend-delta { font-size: 12px; font-weight: 600; }
-  .trend-up { color: var(--accent); }
+  .trend-up { color: var(--green); }
   .trend-down { color: var(--red); }
   .trend-flat { color: var(--text3); }
   .trend-context { font-size: 10px; color: var(--text3); margin-top: 2px; }
@@ -107,14 +116,14 @@
   .loading-overlay {
     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
     background: var(--bg); display: flex; align-items: center; justify-content: center;
-    font-size: 16px; color: var(--accent); z-index: 100; flex-direction: column; gap: 12px;
+    font-size: 16px; color: var(--blue); z-index: 100; flex-direction: column; gap: 12px;
   }
   .loading-overlay.hidden { display: none; }
 
   .toast {
     position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
-    background: var(--bg3); border: 1px solid var(--accent); border-radius: 10px;
-    padding: 10px 20px; font-size: 13px; color: var(--accent); z-index: 200;
+    background: var(--bg3); border: 1px solid var(--green); border-radius: 10px;
+    padding: 10px 20px; font-size: 13px; color: var(--green); z-index: 200;
     opacity: 0; transition: opacity 0.3s; pointer-events: none;
   }
   .toast.show { opacity: 1; }
@@ -125,7 +134,7 @@
   .empty-state-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
   .empty-state-sub { font-size: 13px; color: var(--text3); line-height: 1.5; margin-bottom: 20px; }
   .empty-state .import-big {
-    background: var(--accent2); color: var(--bg); border: none; border-radius: 12px;
+    background: var(--green2); color: #fff; border: none; border-radius: 12px;
     padding: 14px 28px; font-size: 15px; font-weight: 700; cursor: pointer;
   }
 
@@ -256,8 +265,9 @@ const ELEVATION = 900;
 const DB_NAME = 'g730';
 const DB_VERSION = 1;
 const STORE = 'sessions'; // stores {filename, date, content, importedAt}
-const ACCENT = '#8ac18a', ACCENT2 = '#5a9a5a', BLUE = '#6ba3c1', GOLD = '#c1a86b',
-  RED = '#c16b6b', ORANGE = '#c19a5a', TEXT2 = '#a0b8a0', TEXT3 = '#6b8a6b', BORDER = '#2a3f2a';
+const GREEN = '#3fb950', ACCENT = '#58a6ff', ACCENT2 = '#388bfd', BLUE = '#58a6ff', GOLD = '#d29922',
+  RED = '#f85149', ORANGE = '#d18616', TEAL = '#2ea99a', PURPLE = '#bc8cff', PINK = '#f778ba',
+  TEXT2 = '#8b949e', TEXT3 = '#6e7681', BORDER = '#30363d';
 const TAB_LIST = ['overview','progress','yardage','dispersion','sessions','manage'];
 
 let DATA = null;
@@ -636,19 +646,39 @@ function applyBallTypeFilter(items) {
   if (ballTypeFilter === 'all') return items;
   return items.filter(s => s.ballType === ballTypeFilter);
 }
+function parseDateStr(d) {
+  // Parse MM-DD-YYYY format to Date object
+  if (!d) return null;
+  const p = d.split('-');
+  if (p.length !== 3) return null;
+  return new Date(parseInt(p[2]), parseInt(p[0]) - 1, parseInt(p[1]));
+}
+function getDateCutoff(days) {
+  const now = new Date();
+  now.setHours(23, 59, 59, 999);
+  const cutoff = new Date(now);
+  cutoff.setDate(cutoff.getDate() - days);
+  cutoff.setHours(0, 0, 0, 0);
+  return cutoff;
+}
+function applyDateFilter(items) {
+  if (dateFilterMode === 'all') return items;
+  if (dateFilterMode === 'last10' || dateFilterMode === 'last30') {
+    const days = dateFilterMode === 'last10' ? 10 : 30;
+    const cutoff = getDateCutoff(days);
+    return items.filter(s => { const d = parseDateStr(s.date); return d && d >= cutoff; });
+  }
+  if (dateFilterMode.startsWith('month:')) { const m = dateFilterMode.split(':')[1]; return items.filter(s => s.date && s.date.startsWith(m)); }
+  if (dateFilterMode.startsWith('session:')) { const d = dateFilterMode.split(':')[1]; return items.filter(s => s.date === d); }
+  return items;
+}
 function getFilteredShots() {
   if (!DATA) return [];
-  let shots = DATA.shots;
-  if (dateFilterMode.startsWith('month:')) { const m = dateFilterMode.split(':')[1]; shots = shots.filter(s => s.date && s.date.startsWith(m)); }
-  else if (dateFilterMode.startsWith('session:')) { const d = dateFilterMode.split(':')[1]; shots = shots.filter(s => s.date === d); }
-  return applyBallTypeFilter(shots);
+  return applyBallTypeFilter(applyDateFilter(DATA.shots));
 }
 function getFilteredSessions() {
   if (!DATA) return [];
-  let sess = DATA.sessions;
-  if (dateFilterMode.startsWith('month:')) { const m = dateFilterMode.split(':')[1]; sess = sess.filter(s => s.date && s.date.startsWith(m)); }
-  else if (dateFilterMode.startsWith('session:')) { const d = dateFilterMode.split(':')[1]; sess = sess.filter(s => s.date === d); }
-  return applyBallTypeFilter(sess);
+  return applyBallTypeFilter(applyDateFilter(DATA.sessions));
 }
 
 function buildDateFilter() {
@@ -656,6 +686,9 @@ function buildDateFilter() {
   const allDates = [...new Set(DATA.sessions.map(s => s.date))].sort();
   const monthNames = {'01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun','07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'};
   let html = '<option value="all">All Time</option>';
+  html += '<option value="last10">Last 10 Days</option>';
+  html += '<option value="last30">Last 30 Days</option>';
+  html += '<option disabled>──────────</option>';
   const months = [...new Set(allDates.map(d => d.substring(0, 2)))].sort();
   months.forEach(m => { const c = allDates.filter(d => d.startsWith(m)).length; html += `<option value="month:${m}">${monthNames[m]||m} (${c} sessions)</option>`; });
   html += '<option disabled>──────────</option>';
@@ -707,12 +740,12 @@ function updateKPIs(allShots) {
   const spins = src.filter(s=>s.spinRate!=null).map(s=>s.spinRate), launches = src.filter(s=>s.launchAngle!=null).map(s=>s.launchAngle);
   const paths = src.filter(s=>s.clubPath!=null).map(s=>s.clubPath), faces = src.filter(s=>s.faceAngle!=null).map(s=>s.faceAngle);
   document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi"><div class="kpi-value">${carries.length?avg(carries).toFixed(1):'--'}</div><div class="kpi-label">Carry</div><div class="kpi-sub">${carries.length} shots</div></div>
-    <div class="kpi"><div class="kpi-value">${speeds.length?avg(speeds).toFixed(1):'--'}</div><div class="kpi-label">Ball Speed</div><div class="kpi-sub">&sigma; ${speeds.length?std(speeds).toFixed(1):'--'}</div></div>
-    <div class="kpi"><div class="kpi-value">${spins.length?Math.round(avg(spins)):'--'}</div><div class="kpi-label">Spin Rate</div><div class="kpi-sub">&sigma; ${spins.length?Math.round(std(spins)):'--'}</div></div>
-    <div class="kpi"><div class="kpi-value">${launches.length?avg(launches).toFixed(1):'--'}&deg;</div><div class="kpi-label">Launch</div><div class="kpi-sub">&sigma; ${launches.length?std(launches).toFixed(1):'--'}&deg;</div></div>
-    <div class="kpi"><div class="kpi-value">${paths.length?(avg(paths)>=0?'+':'')+avg(paths).toFixed(1)+'&deg;':'--'}</div><div class="kpi-label">Club Path</div><div class="kpi-sub">${paths.length} shots</div></div>
-    <div class="kpi"><div class="kpi-value">${faces.length?(avg(faces)>=0?'+':'')+avg(faces).toFixed(1)+'&deg;':'--'}</div><div class="kpi-label">Face Angle</div><div class="kpi-sub">${faces.length} shots</div></div>`;
+    <div class="kpi"><div class="kpi-value" style="color:${GREEN}">${carries.length?avg(carries).toFixed(1):'--'}</div><div class="kpi-label">Carry</div><div class="kpi-sub">${carries.length} shots</div></div>
+    <div class="kpi"><div class="kpi-value" style="color:${BLUE}">${speeds.length?avg(speeds).toFixed(1):'--'}</div><div class="kpi-label">Ball Speed</div><div class="kpi-sub">&sigma; ${speeds.length?std(speeds).toFixed(1):'--'}</div></div>
+    <div class="kpi"><div class="kpi-value" style="color:${GOLD}">${spins.length?Math.round(avg(spins)):'--'}</div><div class="kpi-label">Spin Rate</div><div class="kpi-sub">&sigma; ${spins.length?Math.round(std(spins)):'--'}</div></div>
+    <div class="kpi"><div class="kpi-value" style="color:${TEAL}">${launches.length?avg(launches).toFixed(1):'--'}&deg;</div><div class="kpi-label">Launch</div><div class="kpi-sub">&sigma; ${launches.length?std(launches).toFixed(1):'--'}&deg;</div></div>
+    <div class="kpi"><div class="kpi-value" style="color:${PURPLE}">${paths.length?(avg(paths)>=0?'+':'')+avg(paths).toFixed(1)+'&deg;':'--'}</div><div class="kpi-label">Club Path</div><div class="kpi-sub">${paths.length} shots</div></div>
+    <div class="kpi"><div class="kpi-value" style="color:${PINK}">${faces.length?(avg(faces)>=0?'+':'')+avg(faces).toFixed(1)+'&deg;':'--'}</div><div class="kpi-label">Face Angle</div><div class="kpi-sub">${faces.length} shots</div></div>`;
 }
 
 function chartOpts() { return { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: TEXT3, font: { size: 10 } } } }, scales: { x: { ticks: { color: TEXT3, font: { size: 10 } }, grid: { color: BORDER } }, y: { ticks: { color: TEXT3, font: { size: 10 } }, grid: { color: BORDER } } } }; }
@@ -722,7 +755,7 @@ function updateTrendChart(sess) {
   if (charts.trend) charts.trend.destroy();
   const ctx = document.getElementById('trendChart'); if (!ctx) return;
   charts.trend = new Chart(ctx, { type:'line', data:{ labels:s.map(x=>x.date.replace(/-2026$/,'')),
-    datasets:[{label:'Carry (yds)',data:s.map(x=>+x.carryAvg.toFixed(1)),borderColor:ACCENT,backgroundColor:ACCENT+'22',tension:.3,fill:true,pointRadius:4,pointBackgroundColor:ACCENT},
+    datasets:[{label:'Carry (yds)',data:s.map(x=>+x.carryAvg.toFixed(1)),borderColor:GREEN,backgroundColor:GREEN+'22',tension:.3,fill:true,pointRadius:4,pointBackgroundColor:GREEN},
     {label:'Ball Speed',data:s.map(x=>+x.ballSpeedAvg.toFixed(1)),borderColor:BLUE,borderDash:[4,4],tension:.3,pointRadius:3,pointBackgroundColor:BLUE}]}, options:chartOpts()});
 }
 
@@ -732,7 +765,7 @@ function updateDistChart(allShots) {
   const mn = Math.floor(Math.min(...carries)/5)*5, mx = Math.ceil(Math.max(...carries)/5)*5, bins=[];
   for (let b=mn;b<mx;b+=5) bins.push({label:`${b}-${b+5}`,count:carries.filter(c=>c>=b&&c<b+5).length});
   const ctx = document.getElementById('distChart'); if (!ctx) return;
-  charts.dist = new Chart(ctx,{type:'bar',data:{labels:bins.map(b=>b.label),datasets:[{data:bins.map(b=>b.count),backgroundColor:ACCENT+'88',borderColor:ACCENT,borderWidth:1}]},options:{...chartOpts(),plugins:{legend:{display:false}}}});
+  charts.dist = new Chart(ctx,{type:'bar',data:{labels:bins.map(b=>b.label),datasets:[{data:bins.map(b=>b.count),backgroundColor:TEAL+'88',borderColor:TEAL,borderWidth:1,borderRadius:4}]},options:{...chartOpts(),plugins:{legend:{display:false}}}});
 }
 
 // ─── Full bag with estimated clubs ───
@@ -790,8 +823,8 @@ function updateYardageChart(allShots) {
   if (charts.yardage) charts.yardage.destroy(); if (!bag.length) return;
   // Compute gaps
   for (let i = 0; i < bag.length - 1; i++) bag[i].gap = bag[i].carryAvg - bag[i + 1].carryAvg;
-  const colors = bag.map(s => s.estimated ? '#4a5a4a' : ACCENT);
-  const borderColors = bag.map(s => s.estimated ? '#3a4a3a' : ACCENT);
+  const colors = bag.map(s => s.estimated ? '#3a4550' : GREEN);
+  const borderColors = bag.map(s => s.estimated ? '#2a3540' : GREEN);
   const ctx = document.getElementById('yardageChart'); if (!ctx) return;
   charts.yardage = new Chart(ctx, {
     type: 'bar',
@@ -826,7 +859,7 @@ function updateYardageChart(allShots) {
           c.save();
           c.textAlign = 'center';
           c.font = 'bold 11px -apple-system, sans-serif';
-          c.fillStyle = b.estimated ? '#6b8a6b' : ACCENT;
+          c.fillStyle = b.estimated ? '#6e7681' : GREEN;
           c.fillText(b.carryAvg.toFixed(0), bar.x, bar.y - 14);
           c.font = '9px -apple-system, sans-serif';
           c.fillStyle = TEXT3;
@@ -858,7 +891,7 @@ function updateScatterChart(allShots) {
   const pts=allShots.filter(s=>s.filtered&&s.club===selectedClub&&s.carry!=null&&s.offline!=null).map(s=>({x:s.offline,y:s.carry}));
   if (charts.scatter) charts.scatter.destroy(); if (!pts.length) return;
   const ctx=document.getElementById('scatterChart'); if (!ctx) return;
-  charts.scatter=new Chart(ctx,{type:'scatter',data:{datasets:[{data:pts,backgroundColor:ACCENT+'66',borderColor:ACCENT,pointRadius:3,pointHoverRadius:5}]},
+  charts.scatter=new Chart(ctx,{type:'scatter',data:{datasets:[{data:pts,backgroundColor:PURPLE+'66',borderColor:PURPLE,pointRadius:3,pointHoverRadius:5}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`Carry: ${ctx.parsed.y.toFixed(1)} | Offline: ${ctx.parsed.x.toFixed(1)}`}}},
     scales:{x:{title:{display:true,text:'Offline (yds)',color:TEXT3,font:{size:11}},ticks:{color:TEXT3},grid:{color:BORDER}},y:{title:{display:true,text:'Carry (yds)',color:TEXT3,font:{size:11}},ticks:{color:TEXT3},grid:{color:BORDER}}}}});
 }
@@ -866,7 +899,7 @@ function updateScatterChart(allShots) {
 function updateSessionTable(sessions) {
   const sess=sessions.filter(s=>s.club===selectedClub).sort((a,b)=>a.date.localeCompare(b.date));
   document.getElementById('sessionTable').innerHTML=`<tr><th style="text-align:left">Date</th><th>Ball</th><th>Carry</th><th>Std</th><th>Speed</th><th>Spin</th><th>Launch</th><th>Shots</th></tr>
-    ${sess.map(s=>`<tr><td>${s.date.replace(/-2026$/,'')}</td><td style="color:${TEXT3};font-size:11px">${s.ballType||''}</td><td style="font-weight:600;color:${ACCENT}">${s.carryAvg.toFixed(1)}</td><td>${s.carryStd.toFixed(1)}</td>
+    ${sess.map(s=>`<tr><td>${s.date.replace(/-2026$/,'')}</td><td style="color:${TEXT3};font-size:11px">${s.ballType||''}</td><td style="font-weight:600;color:${GREEN}">${s.carryAvg.toFixed(1)}</td><td>${s.carryStd.toFixed(1)}</td>
     <td>${s.ballSpeedAvg.toFixed(1)}</td><td>${Math.round(s.spinRateAvg)}</td><td>${s.launchAngleAvg.toFixed(1)}&deg;</td><td style="color:${TEXT3}">${s.shotCount}</td></tr>`).join('')}`;
 }
 
@@ -882,14 +915,14 @@ function linearTrend(data) {
 let progressMetric = 'carry'; // carry, dispersion, consistency, speed, spin, launch, clubPath, faceAngle
 
 const PROGRESS_METRICS = {
-  carry:      { key: 'carryAvg',       label: 'Carry',       color: ACCENT, unit: 'yds', hib: true, dec: 1 },
+  carry:      { key: 'carryAvg',       label: 'Carry',       color: GREEN,  unit: 'yds', hib: true, dec: 1 },
   dispersion: { key: 'offlineAbsAvg',  label: 'Dispersion',  color: ORANGE, unit: 'yds', hib: false, dec: 1, reverse: true, yLabel: 'yards (lower = tighter)' },
   consistency:{ key: 'carryStd',       label: 'Consistency',  color: RED,    unit: 'yds', hib: false, dec: 1, reverse: true, yLabel: 'yards (lower = more consistent)' },
   speed:      { key: 'ballSpeedAvg',   label: 'Ball Speed',  color: BLUE,   unit: 'mph', hib: true, dec: 1 },
   spin:       { key: 'spinRateAvg',    label: 'Spin Rate',   color: GOLD,   unit: 'rpm', hib: false, dec: 0 },
-  launch:     { key: 'launchAngleAvg', label: 'Launch',      color: '#9ac1c1', unit: '°', hib: false, dec: 1 },
-  clubPath:   { key: 'clubPathAvg',    label: 'Club Path',   color: '#c1a0c1', unit: '°', hib: false, dec: 1, yLabel: 'degrees (0 = square)' },
-  faceAngle:  { key: 'faceAngleAvg',   label: 'Face Angle',  color: '#c1c1a0', unit: '°', hib: false, dec: 1, yLabel: 'degrees (0 = square)' },
+  launch:     { key: 'launchAngleAvg', label: 'Launch',      color: TEAL,   unit: '°', hib: false, dec: 1 },
+  clubPath:   { key: 'clubPathAvg',    label: 'Club Path',   color: PURPLE, unit: '°', hib: false, dec: 1, yLabel: 'degrees (0 = square)' },
+  faceAngle:  { key: 'faceAngleAvg',   label: 'Face Angle',  color: PINK,   unit: '°', hib: false, dec: 1, yLabel: 'degrees (0 = square)' },
 };
 
 function selectProgressMetric(m) {
@@ -946,7 +979,7 @@ function updateProgressTab() {
     html += `<div class="trend-card" style="cursor:pointer;${active}" onclick="selectProgressMetric('${mKey}')">
       <div class="trend-metric">${m.label}</div>
       <div class="trend-values">
-        <span class="trend-current" style="color:${d.dir === 'up' ? ACCENT : d.dir === 'down' ? RED : TEXT2}">${typeof d.current === 'number' ? d.current.toFixed(m.dec) : d.current}</span>
+        <span class="trend-current" style="color:${d.dir === 'up' ? GREEN : d.dir === 'down' ? RED : TEXT2}">${typeof d.current === 'number' ? d.current.toFixed(m.dec) : d.current}</span>
         <span class="trend-delta ${cls}">${arrow} ${sign}${typeof d.delta === 'number' ? d.delta.toFixed(m.dec) : d.delta}</span>
       </div>
       <div class="trend-context">${lbl}</div>
