@@ -398,7 +398,7 @@ function parseDrivingRangeCSV(content, filename) {
       source: filename, date: fileDate, club: normalizeClub(c[0]), index: parseInt(c[1]) || 0,
       ballSpeed: num(c[2]), launchDirection: parsePrefixDir(c[3]), launchAngle: num(c[4]),
       spinRate: num(c[5]), spinAxis: parsePrefixDir(c[6], false), backSpin: num(c[7]),
-      sideSpin: parsePrefixDir(c[8]), apex: num(c[9]), carry: num(c[10]), total: num(c[11]),
+      sideSpin: parsePrefixDir(c[8]), apex: num(c[9]), carry: num(c[10]), total: null, // CSV totals are unreliable; computed as carry*1.08
       offline: parsePrefixDir(c[12]), landingAngle: num(c[13]), clubPath: parsePrefixDir(c[14]),
       faceAngle: parsePrefixDir(c[15]), attackAngle: num(c[16]), dynamicLoft: num(c[17]),
       clubSpeed: null, smashFactor: null,
@@ -432,7 +432,7 @@ function parseShotAnalysisCSV(content, filename) {
       ballSpeed: num(c[10]), launchAngle: num(c[11]), launchDirection: parseSuffixDir(c[12]),
       spinRate: num(c[15]) || num(c[14]), spinAxis: parseSuffixDir(c[16], false),
       backSpin: parseSuffixDir(c[14]), sideSpin: parseSuffixDir(c[13]),
-      apex: num(c[5]), carry: num(c[3]), total: num(c[4]),
+      apex: num(c[5]), carry: num(c[3]), total: null, // Shot Analysis "Total" is unreliable (inflated rollout)
       offline: parseSuffixDir(c[6]), landingAngle: num(c[8]),
       clubPath: c.length > 20 ? parseSuffixDir(c[20]) : null,
       faceAngle: c.length > 27 ? parseSuffixDir(c[27]) : null,
@@ -781,7 +781,9 @@ function buildFullBag(allShots) {
     const sp = shots.filter(s => s.ballSpeed != null).map(s => s.ballSpeed);
     const sn = shots.filter(s => s.spinRate != null).map(s => s.spinRate);
     if (!c.length) continue;
-    real[club] = { club, carryAvg: avg(c), totalAvg: t.length ? avg(t) : avg(c) * 1.08,
+    const rollout = {'Driver':1.14,'3 Wood':1.10,'3 Hybrid':1.08,'4 Iron':1.06,'5 Iron':1.05,
+      '6 Iron':1.04,'7 Iron':1.03,'8 Iron':1.02,'9 Iron':1.015,'PW':1.005,'UW':1.0,'SW':1.0,'LW':1.0,'GW':1.0};
+    real[club] = { club, carryAvg: avg(c), totalAvg: t.length ? avg(t) : avg(c) * (rollout[club] || 1.03),
       carryStd: std(c), ballSpeedAvg: avg(sp), spinRateAvg: avg(sn), shotCount: c.length, estimated: false };
   }
 
