@@ -168,6 +168,79 @@
   .install-banner-title { font-size: 13px; font-weight: 600; }
   .install-banner-sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
   .install-banner-close { background: none; border: none; color: var(--text3); font-size: 18px; cursor: pointer; padding: 4px 8px; }
+
+  /* Login / Profile */
+  .login-screen {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--bg); z-index: 90; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .login-screen.hidden { display: none; }
+  .login-card {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 16px;
+    padding: 28px 24px; max-width: 380px; width: 100%; text-align: center;
+  }
+  .login-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .login-sub { font-size: 12px; color: var(--text3); margin-bottom: 20px; }
+  .login-input {
+    width: 100%; padding: 10px 14px; font-size: 14px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--bg3); color: var(--text);
+    margin-bottom: 10px; font-family: inherit;
+  }
+  .login-input:focus { outline: none; border-color: var(--accent); }
+  .login-btn {
+    width: 100%; padding: 12px; font-size: 15px; font-weight: 700; border-radius: 10px;
+    border: none; background: var(--green2); color: #fff; cursor: pointer; margin-top: 6px;
+  }
+  .login-btn:active { opacity: 0.8; }
+  .login-toggle { font-size: 12px; color: var(--accent); margin-top: 14px; cursor: pointer; }
+  .login-error { font-size: 12px; color: var(--red); margin-top: 8px; min-height: 16px; }
+  .profile-tiles { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 16px; }
+  .profile-tile {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 16px; cursor: pointer; transition: all 0.2s; text-align: center; min-width: 80px;
+  }
+  .profile-tile:hover, .profile-tile:active { border-color: var(--accent); background: var(--accent2); color: #fff; }
+  .profile-tile-name { font-size: 13px; font-weight: 600; }
+  .profile-tile-user { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .profile-tile:hover .profile-tile-user, .profile-tile:active .profile-tile-user { color: rgba(255,255,255,0.7); }
+  .profile-avatar {
+    width: 28px; height: 28px; border-radius: 50%; background: var(--accent2); color: #fff;
+    font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0;
+  }
+  .profile-menu {
+    position: absolute; top: 42px; right: 0; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 6px 0; min-width: 160px; z-index: 60; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+  .profile-menu.hidden { display: none; }
+  .profile-menu-item {
+    padding: 8px 14px; font-size: 12px; cursor: pointer; color: var(--text); display: block; width: 100%;
+    background: none; border: none; text-align: left; font-family: inherit;
+  }
+  .profile-menu-item:hover { background: var(--bg3); }
+  .profile-menu-item.danger { color: var(--red); }
+  .profile-menu-name { font-size: 11px; color: var(--text3); padding: 6px 14px 4px; }
+
+  .profile-section { margin-bottom: 16px; }
+  .profile-section-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .profile-field { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .profile-field label { font-size: 12px; color: var(--text2); min-width: 80px; flex-shrink: 0; }
+  .profile-field input, .profile-field select {
+    flex: 1; padding: 7px 10px; font-size: 13px; border-radius: 8px;
+    border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-family: inherit;
+  }
+  .profile-field input:focus, .profile-field select:focus { outline: none; border-color: var(--accent); }
+  .bag-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .bag-club { font-size: 12px; font-weight: 600; min-width: 70px; color: var(--text); }
+  .bag-brand { flex: 1; padding: 6px 8px; font-size: 12px; border-radius: 6px;
+    border: 1px solid var(--border); background: var(--bg3); color: var(--text); font-family: inherit; }
+  .bag-brand:focus { outline: none; border-color: var(--accent); }
+  .bag-del { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; padding: 2px 6px; }
+  .bag-del:hover { color: var(--red); }
+  .add-btn { font-size: 12px; color: var(--accent); background: none; border: 1px dashed var(--border);
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; width: 100%; margin-top: 4px; }
+  .add-btn:hover { border-color: var(--accent); background: var(--bg3); }
 </style>
 </head>
 <body>
@@ -177,10 +250,34 @@
 <div class="toast" id="toast"></div>
 <input type="file" id="fileInput" accept=".csv,.CSV" multiple style="display:none" onchange="handleFileImport(event)">
 
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-title">Swing Doctor</div>
+    <div class="login-sub">Golf Sim Performance Dashboard</div>
+    <div id="profileTiles" class="profile-tiles"></div>
+    <div id="loginForm">
+      <input class="login-input" id="loginUser" placeholder="Username" autocapitalize="off" autocorrect="off">
+      <input class="login-input" id="loginName" placeholder="Golfer Name" style="display:none">
+      <input class="login-input" id="loginPass" type="password" placeholder="Password">
+      <button class="login-btn" id="loginBtn" onclick="handleLogin()">Sign In</button>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-toggle" id="loginToggle" onclick="toggleLoginMode()">New here? Create an account</div>
+    </div>
+  </div>
+</div>
+
 <div class="container">
   <div class="header">
     <h1>Swing Doctor</h1>
-    <div class="header-btns">
+    <div class="header-btns" style="position:relative">
+      <div class="profile-avatar" id="profileAvatar" onclick="toggleProfileMenu()" title="Profile"></div>
+      <div class="profile-menu hidden" id="profileMenu">
+        <div class="profile-menu-name" id="profileMenuName"></div>
+        <button class="profile-menu-item" onclick="switchTab('profile');closeProfileMenu()">My Profile</button>
+        <button class="profile-menu-item" onclick="switchProfile()">Switch Profile</button>
+        <button class="profile-menu-item danger" onclick="logout()">Log Out</button>
+      </div>
       <button class="hdr-btn icon-only" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeToggle">
         <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
       </button>
@@ -218,6 +315,7 @@
       <button class="tab" data-tab="dispersion" onclick="switchTab('dispersion')">Dispersion</button>
       <button class="tab" data-tab="sessions" onclick="switchTab('sessions')">Sessions</button>
       <button class="tab" data-tab="manage" onclick="switchTab('manage')">Data</button>
+      <button class="tab" data-tab="profile" onclick="switchTab('profile')">Profile</button>
     </div>
 
     <div id="tab-overview">
@@ -254,6 +352,35 @@
         </div>
       </div>
     </div>
+    <div id="tab-profile" class="section-hidden">
+      <div class="card">
+        <div class="card-title">Golfer Info</div>
+        <div class="profile-field"><label>Username</label><input id="profUsername" disabled></div>
+        <div class="profile-field"><label>Golfer Name</label><input id="profGolferName" onchange="saveProfileField('golferName', this.value)"></div>
+        <div class="profile-field"><label>Launch Sim</label>
+          <select id="profLaunchSim" onchange="saveProfileField('launchSim', this.value)">
+            <option value="">Select...</option>
+            <option value="Bushnell Launch Pro">Bushnell Launch Pro</option>
+            <option value="Garmin R10">Garmin R10</option>
+            <option value="FlightScope Mevo+">FlightScope Mevo+</option>
+            <option value="SkyTrak">SkyTrak</option>
+            <option value="Trackman">Trackman</option>
+            <option value="GC3/GCQuad">GC3 / GCQuad</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">My Bag</div>
+        <div id="bagList"></div>
+        <button class="add-btn" onclick="addBagClub()">+ Add Club</button>
+      </div>
+      <div class="card">
+        <div class="card-title">Golf Balls</div>
+        <div id="ballList"></div>
+        <button class="add-btn" onclick="addBallType()">+ Add Ball</button>
+      </div>
+    </div>
   </div>
 
   <div id="emptyState" class="empty-state" style="display:none">
@@ -276,9 +403,247 @@
 // ═══════════════════════════════════════════════
 
 const ELEVATION = 900;
-const DB_NAME = 'g730';
 const DB_VERSION = 1;
 const STORE = 'sessions'; // stores {filename, date, content, importedAt}
+
+// ─── Profile Management ───
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function getProfiles() { return JSON.parse(localStorage.getItem('g730-profiles') || '{}'); }
+function saveProfiles(p) { localStorage.setItem('g730-profiles', JSON.stringify(p)); }
+function getActiveUser() { return localStorage.getItem('g730-active-user') || ''; }
+function setActiveUser(u) { localStorage.setItem('g730-active-user', u); }
+function getDBName() { const u = getActiveUser(); return u ? `g730_${u}` : 'g730'; }
+
+// Namespaced localStorage helpers (per-profile keys)
+function lsKey(base) { const u = getActiveUser(); return u ? `g730-${u}-${base}` : `g730-${base}`; }
+function lsGet(base, fallback) { return localStorage.getItem(lsKey(base)) || fallback || '{}'; }
+function lsSet(base, value) { localStorage.setItem(lsKey(base), value); }
+
+async function createProfile(username, golferName, password) {
+  const profiles = getProfiles();
+  if (profiles[username]) throw new Error('Username already exists');
+  profiles[username] = {
+    username, golferName, passwordHash: await sha256(password),
+    createdAt: new Date().toISOString(),
+    profile: { launchSim: '', balls: ['tp5x'], bag: [] }
+  };
+  saveProfiles(profiles);
+  return profiles[username];
+}
+
+async function authenticate(username, password) {
+  const profiles = getProfiles();
+  const p = profiles[username];
+  if (!p) throw new Error('User not found');
+  if (p.passwordHash !== await sha256(password)) throw new Error('Wrong password');
+  return p;
+}
+
+let loginMode = 'signin'; // 'signin' or 'register'
+
+function toggleLoginMode() {
+  loginMode = loginMode === 'signin' ? 'register' : 'signin';
+  document.getElementById('loginName').style.display = loginMode === 'register' ? '' : 'none';
+  document.getElementById('loginBtn').textContent = loginMode === 'register' ? 'Create Account' : 'Sign In';
+  document.getElementById('loginToggle').textContent = loginMode === 'register' ? 'Already have an account? Sign in' : 'New here? Create an account';
+  document.getElementById('loginError').textContent = '';
+}
+
+function renderProfileTiles() {
+  const profiles = getProfiles();
+  const names = Object.keys(profiles);
+  if (!names.length) { document.getElementById('profileTiles').innerHTML = ''; return; }
+  document.getElementById('profileTiles').innerHTML = names.map(u => {
+    const p = profiles[u];
+    return `<div class="profile-tile" onclick="quickLogin('${u}')">
+      <div class="profile-tile-name">${p.golferName || u}</div>
+      <div class="profile-tile-user">@${u}</div>
+    </div>`;
+  }).join('');
+}
+
+function quickLogin(username) {
+  document.getElementById('loginUser').value = username;
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginPass').focus();
+  document.getElementById('loginError').textContent = '';
+}
+
+async function handleLogin() {
+  const username = document.getElementById('loginUser').value.trim().toLowerCase();
+  const password = document.getElementById('loginPass').value;
+  const golferName = document.getElementById('loginName').value.trim();
+  const errorEl = document.getElementById('loginError');
+
+  if (!username) { errorEl.textContent = 'Username required'; return; }
+  if (!password) { errorEl.textContent = 'Password required'; return; }
+
+  try {
+    if (loginMode === 'register') {
+      if (!golferName) { errorEl.textContent = 'Golfer name required'; return; }
+      if (username.length < 2) { errorEl.textContent = 'Username too short'; return; }
+      if (password.length < 4) { errorEl.textContent = 'Password too short (min 4)'; return; }
+      await createProfile(username, golferName, password);
+    } else {
+      await authenticate(username, password);
+    }
+    setActiveUser(username);
+    document.getElementById('loginScreen').classList.add('hidden');
+    updateProfileUI();
+    await rebuildData();
+  } catch (e) {
+    errorEl.textContent = e.message;
+  }
+}
+
+function showLoginScreen() {
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  document.getElementById('loginName').value = '';
+  document.getElementById('loginError').textContent = '';
+  loginMode = 'signin';
+  toggleLoginMode(); toggleLoginMode(); // reset to signin state
+  renderProfileTiles();
+}
+
+function logout() {
+  closeProfileMenu();
+  setActiveUser('');
+  DATA = null;
+  showLoginScreen();
+}
+
+function switchProfile() {
+  closeProfileMenu();
+  DATA = null;
+  showLoginScreen();
+}
+
+function toggleProfileMenu() {
+  document.getElementById('profileMenu').classList.toggle('hidden');
+}
+function closeProfileMenu() {
+  document.getElementById('profileMenu').classList.add('hidden');
+}
+// Close profile menu when clicking elsewhere
+document.addEventListener('click', e => {
+  if (!e.target.closest('#profileAvatar') && !e.target.closest('#profileMenu')) closeProfileMenu();
+});
+
+function updateProfileUI() {
+  const u = getActiveUser();
+  const profiles = getProfiles();
+  const p = profiles[u];
+  if (!p) return;
+  const initials = (p.golferName || u).split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('profileAvatar').textContent = initials;
+  document.getElementById('profileMenuName').textContent = p.golferName || u;
+}
+
+// ─── Profile Tab ───
+function updateProfileTab() {
+  const u = getActiveUser();
+  const profiles = getProfiles();
+  const p = profiles[u];
+  if (!p) return;
+
+  document.getElementById('profUsername').value = u;
+  document.getElementById('profGolferName').value = p.golferName || '';
+  document.getElementById('profLaunchSim').value = p.profile?.launchSim || '';
+
+  // Bag
+  const bag = p.profile?.bag || [];
+  document.getElementById('bagList').innerHTML = bag.length ? bag.map((b, i) =>
+    `<div class="bag-row">
+      <span class="bag-club">${b.club}</span>
+      <input class="bag-brand" value="${b.brand || ''}" placeholder="Brand / Model" onchange="updateBagBrand(${i}, this.value)">
+      <button class="bag-del" onclick="removeBagClub(${i})" title="Remove">&times;</button>
+    </div>`
+  ).join('') : '<div style="font-size:12px;color:var(--text3);padding:4px 0">No clubs added yet</div>';
+
+  // Balls
+  const balls = p.profile?.balls || [];
+  document.getElementById('ballList').innerHTML = balls.length ? balls.map((b, i) =>
+    `<div class="bag-row">
+      <span class="bag-club" style="min-width:auto">${b}</span>
+      <span style="flex:1"></span>
+      <button class="bag-del" onclick="removeProfileBall(${i})" title="Remove">&times;</button>
+    </div>`
+  ).join('') : '<div style="font-size:12px;color:var(--text3);padding:4px 0">No balls added yet</div>';
+}
+
+function saveProfileField(field, value) {
+  const u = getActiveUser();
+  const profiles = getProfiles();
+  if (!profiles[u]) return;
+  if (field === 'golferName') {
+    profiles[u].golferName = value;
+  } else {
+    if (!profiles[u].profile) profiles[u].profile = {};
+    profiles[u].profile[field] = value;
+  }
+  saveProfiles(profiles);
+  updateProfileUI();
+}
+
+function addBagClub() {
+  const club = prompt('Club name (e.g. Driver, 7 Iron, PW):');
+  if (!club || !club.trim()) return;
+  const brand = prompt('Brand / Model (optional):') || '';
+  const u = getActiveUser();
+  const profiles = getProfiles();
+  if (!profiles[u].profile) profiles[u].profile = {};
+  if (!profiles[u].profile.bag) profiles[u].profile.bag = [];
+  profiles[u].profile.bag.push({ club: club.trim(), brand: brand.trim() });
+  saveProfiles(profiles);
+  updateProfileTab();
+}
+
+function updateBagBrand(idx, value) {
+  const u = getActiveUser();
+  const profiles = getProfiles();
+  if (profiles[u]?.profile?.bag?.[idx]) {
+    profiles[u].profile.bag[idx].brand = value;
+    saveProfiles(profiles);
+  }
+}
+
+function removeBagClub(idx) {
+  const u = getActiveUser();
+  const profiles = getProfiles();
+  if (profiles[u]?.profile?.bag) {
+    profiles[u].profile.bag.splice(idx, 1);
+    saveProfiles(profiles);
+    updateProfileTab();
+  }
+}
+
+function addBallType() {
+  const ball = prompt('Ball type (e.g. TaylorMade TP5x):');
+  if (!ball || !ball.trim()) return;
+  const u = getActiveUser();
+  const profiles = getProfiles();
+  if (!profiles[u].profile) profiles[u].profile = {};
+  if (!profiles[u].profile.balls) profiles[u].profile.balls = [];
+  profiles[u].profile.balls.push(ball.trim());
+  saveProfiles(profiles);
+  updateProfileTab();
+}
+
+function removeProfileBall(idx) {
+  const u = getActiveUser();
+  const profiles = getProfiles();
+  if (profiles[u]?.profile?.balls) {
+    profiles[u].profile.balls.splice(idx, 1);
+    saveProfiles(profiles);
+    updateProfileTab();
+  }
+}
 function cv(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 Object.defineProperties(window, {
   GREEN:  { get() { return cv('--green'); } },
@@ -295,7 +660,7 @@ Object.defineProperties(window, {
   TEXT3:  { get() { return cv('--text3'); } },
   BORDER: { get() { return cv('--border'); } },
 });
-const TAB_LIST = ['overview','progress','yardage','dispersion','sessions','manage'];
+const TAB_LIST = ['overview','progress','yardage','dispersion','sessions','manage','profile'];
 
 let DATA = null;
 let selectedClub = null;
@@ -313,7 +678,7 @@ const DEFAULT_BALL_TYPE = 'tp5x';
 // ─── IndexedDB ───
 function openDB() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDB.open(getDBName(), DB_VERSION);
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(STORE)) {
@@ -518,7 +883,7 @@ function processAllData(storedSessions) {
   allShots.forEach(s => { if (s.club === '6 Iron' && s.date && s.date < '03-19-2026') s.club = '7 Iron'; });
 
   // Ball type tagging — check saved overrides first, then defaults
-  const savedBallTypes = JSON.parse(localStorage.getItem('g730-ball-types') || '{}');
+  const savedBallTypes = JSON.parse(lsGet('ball-types'));
   allShots.forEach(s => {
     s.ballType = savedBallTypes[s.date] || BALL_TYPE_DEFAULTS[s.date] || DEFAULT_BALL_TYPE;
   });
@@ -645,12 +1010,74 @@ async function bootstrapFromServer() {
   } catch (e) { return false; }
 }
 
+// ─── Migration: move old g730 DB to first profile ───
+async function migrateOldData() {
+  // Check if old 'g730' DB has data
+  try {
+    const db = await new Promise((resolve, reject) => {
+      const req = indexedDB.open('g730', 1);
+      req.onupgradeneeded = e => { e.target.result.createObjectStore(STORE, { keyPath: 'filename' }); };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    const tx = db.transaction(STORE, 'readonly');
+    const all = await new Promise((resolve, reject) => {
+      const r = tx.objectStore(STORE).getAll();
+      r.onsuccess = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+    });
+    db.close();
+    return all; // returns old sessions array (may be empty)
+  } catch (e) { return []; }
+}
+
+async function runMigration(username) {
+  const oldSessions = await migrateOldData();
+  if (!oldSessions.length) return;
+  // Copy to new profile DB
+  setActiveUser(username);
+  for (const sess of oldSessions) {
+    await saveSession(sess.filename, sess.content);
+  }
+  // Copy ball types
+  const oldBT = localStorage.getItem('g730-ball-types');
+  if (oldBT) lsSet('ball-types', oldBT);
+}
+
 // ─── Init ───
 async function init() {
   try {
+    const activeUser = getActiveUser();
+    const profiles = getProfiles();
+
+    // Check if we need to migrate (no profiles exist but old DB might have data)
+    if (!Object.keys(profiles).length) {
+      const oldSessions = await migrateOldData();
+      if (oldSessions.length) {
+        // Auto-create a default profile and migrate
+        await createProfile('golfer', 'Golfer', 'golf');
+        await runMigration('golfer');
+        setActiveUser('golfer');
+        document.getElementById('loginScreen').classList.add('hidden');
+        updateProfileUI();
+        await rebuildData();
+        showToast('Data migrated! Set your name in Profile tab');
+        return;
+      }
+    }
+
+    if (!activeUser || !profiles[activeUser]) {
+      // Show login screen
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      showLoginScreen();
+      return;
+    }
+
+    // Active user exists — load their data
+    document.getElementById('loginScreen').classList.add('hidden');
+    updateProfileUI();
     const stored = await getAllSessions();
     if (!stored.length) {
-      // Try to auto-load from server
       const bootstrapped = await bootstrapFromServer();
       if (!bootstrapped) {
         document.getElementById('loadingOverlay').classList.add('hidden');
@@ -758,7 +1185,7 @@ function updateDashboard() {
   document.getElementById('subtitle').textContent = `${active.length} shots · ${fss.length} sessions · ${label}${ballLabel} · ${DATA.fileCount} files`;
   const allShots = DATA.shots;
   updateKPIs(fs); updateTrendChart(fss); updateDistChart(fs); updateYardageChart(allShots);
-  updateYardageTable(allShots); updateScatterChart(fs); updateSessionTable(fss); updateProgressTab(); updateManageTab();
+  updateYardageTable(allShots); updateScatterChart(fs); updateSessionTable(fss); updateProgressTab(); updateManageTab(); updateProfileTab();
 }
 
 // ─── KPIs ───
@@ -1061,7 +1488,7 @@ async function updateManageTab() {
     for (const d of dates) { (dateFiles[d] = dateFiles[d] || []).push(s.filename); }
   }
 
-  const savedBallTypes = JSON.parse(localStorage.getItem('g730-ball-types') || '{}');
+  const savedBallTypes = JSON.parse(lsGet('ball-types'));
   const allDates = Object.keys(dateFiles).sort();
   const defaultTypes = ['tp5x', 'tp5', 'various', 'prov1', 'other'];
   // Merge any custom ball types the user has used before
@@ -1099,7 +1526,7 @@ function handleBallTypeSelect(date, selectEl) {
       setBallType(date, custom.trim().toLowerCase());
     } else {
       // Reset to current value
-      const saved = JSON.parse(localStorage.getItem('g730-ball-types') || '{}');
+      const saved = JSON.parse(lsGet('ball-types'));
       selectEl.value = saved[date] || BALL_TYPE_DEFAULTS[date] || DEFAULT_BALL_TYPE;
     }
   } else {
@@ -1108,9 +1535,9 @@ function handleBallTypeSelect(date, selectEl) {
 }
 
 async function setBallType(date, type) {
-  const saved = JSON.parse(localStorage.getItem('g730-ball-types') || '{}');
+  const saved = JSON.parse(lsGet('ball-types'));
   saved[date] = type;
-  localStorage.setItem('g730-ball-types', JSON.stringify(saved));
+  lsSet('ball-types', JSON.stringify(saved));
   showToast(`${date} → ${type}`);
   await rebuildData();
 }
@@ -1215,6 +1642,10 @@ function showInstallBanner() {
   document.body.appendChild(banner);
 }
 function dismissInstallBanner() { const b=document.querySelector('.install-banner'); if(b)b.remove(); localStorage.setItem('g730-install-dismissed','1'); }
+
+// Login form enter key
+document.getElementById('loginPass').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+document.getElementById('loginUser').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('loginPass').focus(); });
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 init();
