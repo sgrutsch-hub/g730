@@ -721,7 +721,7 @@ function parseShotAnalysisCSV(content, filename) {
       ballSpeed: num(c[10]), launchAngle: num(c[11]), launchDirection: parseSuffixDir(c[12]),
       spinRate: num(c[15]) || num(c[14]), spinAxis: parseSuffixDir(c[16], false),
       backSpin: parseSuffixDir(c[14]), sideSpin: parseSuffixDir(c[13]),
-      apex: num(c[5]), carry: num(c[3]), total: null, // Shot Analysis "Total" is unreliable (inflated rollout)
+      apex: num(c[5]), carry: num(c[3]), total: null,
       offline: parseSuffixDir(c[6]), landingAngle: num(c[8]),
       clubPath: c.length > 20 ? parseSuffixDir(c[20]) : null,
       faceAngle: c.length > 27 ? parseSuffixDir(c[27]) : null,
@@ -729,6 +729,57 @@ function parseShotAnalysisCSV(content, filename) {
       dynamicLoft: c.length > 23 ? num(c[23]) : null,
       clubSpeed: c.length > 16 ? num(c[16]) : null,
       smashFactor: c.length > 18 ? num(c[18]) : null,
+    });
+  }
+  return shots;
+}
+
+// Bushnell Session export: email on line 1, club sections with ",Date,Time,Ball Speed,Launch Angle,..."
+// Columns: idx, date, time, ballSpeed, launchAngle, launchDir, sideSpin, backSpin, spinRate,
+//   spinAxisTilt, clubSpeed, clubSpeedImpact, efficiency, AoA, clubPath, faceToPath,
+//   lieAngle, dynamicLoft, closureRate, horzImpact, vertImpact, faceToTarget,
+//   carry(22), total(23), peakHeight(24), offline(25), totalOffline(26), curve(27),
+//   descentAngle(28), hangTime(29), ...
+function parseSessionCSV(content, filename) {
+  const lines = content.split('\n');
+  const shots = [];
+  let currentClub = null, headerLine = null;
+  for (const line of lines) {
+    const l = line.trim();
+    if (!l) { continue; }
+    // Club line: "7i, " or "3h, " or "Driver, "
+    if (/^[A-Za-z0-9\s]+,\s*$/.test(l) && !l.startsWith(',') && l.split(',').length <= 3) {
+      currentClub = normalizeClub(l.replace(/,\s*$/, '').trim());
+      headerLine = null;
+      continue;
+    }
+    if (l.startsWith(',Date,Time,')) { headerLine = l; continue; }
+    if (l.startsWith('Average,')) continue;
+    if (!headerLine || !currentClub) continue;
+    const c = l.split(',');
+    if (c.length < 25) continue;
+    const idx = parseInt(c[0]);
+    if (isNaN(idx)) continue;
+    // Date: "3/19/26" → "03-19-2026"
+    const rawDate = (c[1] || '').trim();
+    const dp = rawDate.split('/');
+    let date = rawDate;
+    if (dp.length === 3) {
+      const mm = dp[0].padStart(2, '0');
+      const dd = dp[1].padStart(2, '0');
+      let yy = dp[2];
+      if (yy.length === 2) yy = (parseInt(yy) > 50 ? '19' : '20') + yy;
+      date = `${mm}-${dd}-${yy}`;
+    }
+    shots.push({
+      source: filename, date, club: currentClub, index: idx,
+      ballSpeed: num(c[3]), launchAngle: num(c[4]), launchDirection: num(c[5]),
+      sideSpin: num(c[6]), backSpin: num(c[7]), spinRate: num(c[8]),
+      spinAxis: num(c[9]), clubSpeed: num(c[10]),
+      smashFactor: num(c[12]), attackAngle: num(c[13]), clubPath: num(c[14]),
+      faceAngle: null, dynamicLoft: null,
+      carry: num(c[22]), total: null, apex: num(c[24]),
+      offline: num(c[25]), landingAngle: num(c[28]),
     });
   }
   return shots;
@@ -769,10 +820,17 @@ function theoreticalCarry(bs, la, sr) {
 function processAllData(storedSessions) {
   let allShots = [];
   for (const sess of storedSessions) {
-    const first = sess.content.split('\n')[0] || '';
-    const shots = first.includes('Shot Analysis')
-      ? parseShotAnalysisCSV(sess.content, sess.filename)
-      : parseDrivingRangeCSV(sess.content, sess.filename);
+    const content = sess.content || '';
+    const first = content.split('\n')[0] || '';
+    let shots;
+    if (first.includes('Shot Analysis')) {
+      shots = parseShotAnalysisCSV(content, sess.filename);
+    } else if (content.includes(',Date,Time,Ball Speed,Launch Angle,')) {
+      // Bushnell Session export (email on line 1, club sections with session headers)
+      shots = parseSessionCSV(content, sess.filename);
+    } else {
+      shots = parseDrivingRangeCSV(content, sess.filename);
+    }
     allShots.push(...shots);
   }
 
