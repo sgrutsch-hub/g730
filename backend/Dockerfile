@@ -15,7 +15,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Install Python dependencies
-COPY pyproject.toml .
+COPY pyproject.toml README.md ./
+COPY app/ app/
 RUN pip install --no-cache-dir --prefix=/install .
 
 # ── Stage 2: Runtime image ──
