@@ -11,6 +11,7 @@ from fastapi import APIRouter
 from app.api.v1.ai import router as ai_router
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.billing import router as billing_router
 from app.api.v1.profiles import router as profiles_router
 from app.api.v1.sessions import router as sessions_router
 
@@ -21,3 +22,4 @@ router.include_router(profiles_router)
 router.include_router(sessions_router)
 router.include_router(analytics_router)
 router.include_router(ai_router)
+router.include_router(billing_router)

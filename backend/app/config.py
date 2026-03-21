@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     stripe_price_pro_monthly: str = ""
     stripe_price_pro_yearly: str = ""
+    stripe_price_pro_plus_monthly: str = ""
+    stripe_price_pro_plus_yearly: str = ""
 
     # ── AI ──
     anthropic_api_key: str = ""

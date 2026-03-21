@@ -8,6 +8,7 @@ requires a valid access token via the get_current_user dependency.
 """
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -20,6 +21,12 @@ from app.schemas.auth import (
     UserResponse,
 )
 from app.services.auth import login_user, refresh_tokens, register_user
+from app.services.email import (
+    reset_password,
+    send_password_reset_email,
+    send_verification_email,
+    verify_email_token,
+)
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -83,3 +90,50 @@ async def refresh(body: RefreshRequest, db: AsyncSession = Depends(get_db)) -> T
         refresh_token=refresh_token,
         expires_in=settings.jwt_access_token_expire_minutes * 60,
     )
+
+
+# ── Email verification ──
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+@router.post("/verify-email", summary="Verify email address")
+async def verify_email(
+    body: VerifyEmailRequest, db: AsyncSession = Depends(get_db)
+) -> dict:
+    """Verify a user's email using the token from the verification email."""
+    user = await verify_email_token(db, body.token)
+    return {"verified": True, "email": user.email}
+
+
+@router.post("/forgot-password", summary="Request password reset")
+async def forgot_password(
+    body: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)
+) -> dict:
+    """
+    Send a password reset email.
+
+    Always returns success to prevent email enumeration.
+    """
+    await send_password_reset_email(db, body.email)
+    return {"sent": True}
+
+
+@router.post("/reset-password", summary="Reset password with token")
+async def reset_password_endpoint(
+    body: ResetPasswordRequest, db: AsyncSession = Depends(get_db)
+) -> dict:
+    """Reset a user's password using the token from the reset email."""
+    await reset_password(db, body.token, body.new_password)
+    return {"reset": True}
