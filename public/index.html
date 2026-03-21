@@ -712,42 +712,16 @@
       border-radius: 12px;
       overflow: hidden;
     }
-    .drill-video-placeholder {
+    .drill-video-embed {
       width: 100%;
       aspect-ratio: 16 / 9;
-      background: linear-gradient(135deg, #1a1a2e, #16213e);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
       position: relative;
     }
-    .play-btn {
-      width: 56px; height: 56px;
-      border-radius: 50%;
-      background: rgba(255,255,255,0.1);
-      border: 2px solid rgba(255,255,255,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-    }
-    .play-btn:hover {
-      background: rgba(255,255,255,0.2);
-      transform: scale(1.05);
-    }
-    .play-btn svg {
-      width: 20px; height: 20px;
-      fill: white;
-      margin-left: 3px;
-    }
-    .drill-video-label {
-      font-family: var(--font-mono);
-      font-size: 0.65rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--text-muted);
+    .drill-video-embed iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border: none;
     }
     .drill-info {
       padding: 16px 20px;
@@ -1173,11 +1147,8 @@
           </div>
           <div class="ai-panel-body" style="padding: 0;">
             <div class="drill-card">
-              <div class="drill-video-placeholder">
-                <div class="play-btn">
-                  <svg viewBox="0 0 24 24"><polygon points="8 5 19 12 8 19 8 5"/></svg>
-                </div>
-                <span class="drill-video-label">YouTube Drill Video</span>
+              <div class="drill-video-embed">
+                <iframe src="https://www.youtube.com/embed/yGFOxHTxRQs" title="Reverse Engineer Drill — Danny Maude" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe>
               </div>
               <div class="drill-info">
                 <div class="drill-name">Reverse Engineer Drill</div>
