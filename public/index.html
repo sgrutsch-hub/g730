@@ -356,9 +356,205 @@
 
 <script>
 // ═══════════════════════════════════════════════
-// Swing Doctor — Fully client-side golf sim dashboard
-// All data stored in IndexedDB on the device
+// Swing Doctor — Golf sim performance dashboard
+// Local-first with optional cloud sync via API
 // ═══════════════════════════════════════════════
+
+// ─── API Client ───
+// Provides cloud sync when backend is available.
+// Falls back gracefully to local-only mode.
+const API = {
+  BASE: 'https://api.swing.doctor/api/v1',
+  token: null,
+  refreshToken: null,
+  enabled: false, // set true once user logs in to cloud
+
+  init() {
+    this.token = localStorage.getItem('sd-api-token');
+    this.refreshToken = localStorage.getItem('sd-api-refresh');
+    this.enabled = !!this.token;
+  },
+
+  setTokens(access, refresh) {
+    this.token = access;
+    this.refreshToken = refresh;
+    this.enabled = true;
+    localStorage.setItem('sd-api-token', access);
+    localStorage.setItem('sd-api-refresh', refresh);
+  },
+
+  clearTokens() {
+    this.token = null;
+    this.refreshToken = null;
+    this.enabled = false;
+    localStorage.removeItem('sd-api-token');
+    localStorage.removeItem('sd-api-refresh');
+    localStorage.removeItem('sd-api-profile-id');
+  },
+
+  getProfileId() { return localStorage.getItem('sd-api-profile-id'); },
+  setProfileId(id) { localStorage.setItem('sd-api-profile-id', id); },
+
+  async _fetch(path, opts = {}) {
+    const headers = { ...(opts.headers || {}) };
+    if (this.token) headers['Authorization'] = `Bearer ${this.token}`;
+    if (!(opts.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+
+    const res = await fetch(`${this.BASE}${path}`, { ...opts, headers });
+
+    // Token expired — try refresh
+    if (res.status === 401 && this.refreshToken) {
+      const refreshed = await this._tryRefresh();
+      if (refreshed) {
+        headers['Authorization'] = `Bearer ${this.token}`;
+        return fetch(`${this.BASE}${path}`, { ...opts, headers });
+      }
+      this.clearTokens();
+    }
+
+    return res;
+  },
+
+  async _tryRefresh() {
+    try {
+      const res = await fetch(`${this.BASE}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: this.refreshToken }),
+      });
+      if (!res.ok) return false;
+      const data = await res.json();
+      this.setTokens(data.access_token, data.refresh_token);
+      return true;
+    } catch { return false; }
+  },
+
+  // ── Auth ──
+  async register(email, password, displayName) {
+    const res = await fetch(`${this.BASE}/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, display_name: displayName }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Registration failed');
+    const data = await res.json();
+    this.setTokens(data.access_token, data.refresh_token);
+    // Fetch profiles to get profile ID
+    await this._loadProfile();
+    return data;
+  },
+
+  async login(email, password) {
+    const res = await fetch(`${this.BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Login failed');
+    const data = await res.json();
+    this.setTokens(data.access_token, data.refresh_token);
+    await this._loadProfile();
+    return data;
+  },
+
+  async _loadProfile() {
+    const res = await this._fetch('/profiles');
+    if (res.ok) {
+      const profiles = await res.json();
+      if (profiles.length) this.setProfileId(profiles[0].id);
+    }
+  },
+
+  // ── Sessions ──
+  async uploadSession(file) {
+    const pid = this.getProfileId();
+    if (!pid) throw new Error('No profile');
+    const form = new FormData();
+    form.append('file', file);
+    const res = await this._fetch(`/sessions/upload?profile_id=${pid}`, {
+      method: 'POST',
+      body: form,
+    });
+    if (!res.ok) throw new Error((await res.json()).detail || 'Upload failed');
+    return res.json();
+  },
+
+  async getSessions(params = {}) {
+    const pid = this.getProfileId();
+    if (!pid) return { sessions: [], has_more: false };
+    const qs = new URLSearchParams({ profile_id: pid, ...params });
+    const res = await this._fetch(`/sessions?${qs}`);
+    if (!res.ok) return { sessions: [], has_more: false };
+    return res.json();
+  },
+
+  // ── Analytics ──
+  async getAnalytics(params = {}) {
+    const pid = this.getProfileId();
+    if (!pid) return null;
+    const qs = new URLSearchParams(params);
+    const res = await this._fetch(`/analytics/profiles/${pid}/summary?${qs}`);
+    if (!res.ok) return null;
+    return res.json();
+  },
+
+  async getHandicap() {
+    const pid = this.getProfileId();
+    if (!pid) return null;
+    const res = await this._fetch(`/analytics/profiles/${pid}/handicap`);
+    if (!res.ok) return null;
+    return res.json();
+  },
+
+  // ── AI Analysis ──
+  async getAIAnalysis(additionalContext = null) {
+    const pid = this.getProfileId();
+    if (!pid) throw new Error('No profile');
+    const body = additionalContext ? { additional_context: additionalContext } : {};
+    const res = await this._fetch(`/ai/profiles/${pid}/analyze`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'AI analysis failed');
+    }
+    return res.json();
+  },
+
+  // ── Billing ──
+  async getSubscriptionStatus() {
+    const res = await this._fetch('/billing/status');
+    if (!res.ok) return { tier: 'free', is_active: false };
+    return res.json();
+  },
+
+  async createCheckout(priceId) {
+    const res = await this._fetch('/billing/checkout', {
+      method: 'POST',
+      body: JSON.stringify({
+        price_id: priceId,
+        success_url: window.location.origin + '?billing=success',
+        cancel_url: window.location.origin + '?billing=cancel',
+      }),
+    });
+    if (!res.ok) throw new Error('Checkout failed');
+    const data = await res.json();
+    window.location.href = data.checkout_url;
+  },
+
+  async openBillingPortal() {
+    const res = await this._fetch('/billing/portal', {
+      method: 'POST',
+      body: JSON.stringify({ return_url: window.location.origin }),
+    });
+    if (!res.ok) throw new Error('Portal failed');
+    const data = await res.json();
+    window.location.href = data.portal_url;
+  },
+};
+
+API.init();
 
 const ELEVATION = 900;
 const DB_VERSION = 1;

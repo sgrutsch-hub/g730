@@ -5,8 +5,8 @@ Revises:
 Create Date: 2026-03-21
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "001"
@@ -14,12 +14,24 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
+_NOW = sa.func.now()
+_TS = sa.DateTime(timezone=True)
+_UUID = _UUID
+
+
+def _timestamps() -> list:
+    """Standard created_at / updated_at columns."""
+    return [
+        sa.Column("created_at", _TS, server_default=_NOW, nullable=False),
+        sa.Column("updated_at", _TS, server_default=_NOW, nullable=False),
+    ]
+
 
 def upgrade() -> None:
     # ── Users ──
     op.create_table(
         "users",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _UUID, nullable=False),
         sa.Column("email", sa.String(255), nullable=False),
         sa.Column("display_name", sa.String(100), nullable=True),
         sa.Column("password_hash", sa.String(255), nullable=True),
@@ -32,8 +44,7 @@ def upgrade() -> None:
         sa.Column("last_login_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("verified_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("timezone", sa.String(50), server_default="America/Chicago", nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        *_timestamps(),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("email"),
     )
@@ -44,8 +55,8 @@ def upgrade() -> None:
     # ── Profiles ──
     op.create_table(
         "profiles",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _UUID, nullable=False),
+        sa.Column("user_id", _UUID, nullable=False),
         sa.Column("name", sa.String(100), nullable=False),
         sa.Column("is_default", sa.Boolean(), server_default="false", nullable=False),
         sa.Column("launch_monitor", sa.String(50), nullable=True),
@@ -53,8 +64,7 @@ def upgrade() -> None:
         sa.Column("default_ball", sa.String(50), nullable=True),
         sa.Column("elevation_ft", sa.Integer(), server_default="0", nullable=False),
         sa.Column("settings", postgresql.JSONB(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        *_timestamps(),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
     )
@@ -64,16 +74,15 @@ def upgrade() -> None:
     # ── Clubs ──
     op.create_table(
         "clubs",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("profile_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _UUID, nullable=False),
+        sa.Column("profile_id", _UUID, nullable=False),
         sa.Column("name", sa.String(30), nullable=False),
         sa.Column("brand", sa.String(100), nullable=True),
         sa.Column("loft_degrees", sa.Float(), nullable=True),
         sa.Column("shaft", sa.String(100), nullable=True),
         sa.Column("sort_order", sa.SmallInteger(), server_default="0", nullable=False),
         sa.Column("is_active", sa.Boolean(), server_default="true", nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        *_timestamps(),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["profile_id"], ["profiles.id"], ondelete="CASCADE"),
     )
@@ -83,10 +92,13 @@ def upgrade() -> None:
     # ── Sessions ──
     op.create_table(
         "sessions",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("profile_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _UUID, nullable=False),
+        sa.Column("profile_id", _UUID, nullable=False),
         sa.Column("source_file", sa.String(255), nullable=False),
-        sa.Column("source_format", sa.String(30), nullable=False, comment="Parser that produced this data"),
+        sa.Column(
+            "source_format", sa.String(30), nullable=False,
+            comment="Parser that produced this data",
+        ),
         sa.Column("raw_csv", sa.Text(), nullable=True, comment="Original CSV for re-parsing"),
         sa.Column("session_date", sa.Date(), nullable=False),
         sa.Column("ball_type", sa.String(50), nullable=True),
@@ -95,22 +107,24 @@ def upgrade() -> None:
         sa.Column("shot_count", sa.Integer(), server_default="0", nullable=False),
         sa.Column("imported_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("processed_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        *_timestamps(),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["profile_id"], ["profiles.id"], ondelete="CASCADE"),
     )
     op.create_index("ix_sessions_profile_id", "sessions", ["profile_id"])
     op.create_index("ix_sessions_session_date", "sessions", ["session_date"])
-    op.create_index("uq_sessions_profile_file", "sessions", ["profile_id", "source_file"], unique=True)
+    op.create_index(
+        "uq_sessions_profile_file", "sessions",
+        ["profile_id", "source_file"], unique=True,
+    )
     op.create_index("ix_sessions_profile_date", "sessions", ["profile_id", "session_date"])
 
     # ── Shots ──
     op.create_table(
         "shots",
-        sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("session_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("profile_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("id", _UUID, nullable=False),
+        sa.Column("session_id", _UUID, nullable=False),
+        sa.Column("profile_id", _UUID, nullable=False),
         sa.Column("club_name", sa.String(30), nullable=False),
         sa.Column("shot_index", sa.SmallInteger(), nullable=False),
         sa.Column("shot_date", sa.Date(), nullable=False),
@@ -146,8 +160,7 @@ def upgrade() -> None:
                   comment="False if trimmed by bottom-N% filter"),
         sa.Column("ball_type", sa.String(50), nullable=True),
         # Timestamps
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        *_timestamps(),
         sa.PrimaryKeyConstraint("id"),
         sa.ForeignKeyConstraint(["session_id"], ["sessions.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["profile_id"], ["profiles.id"], ondelete="CASCADE"),
