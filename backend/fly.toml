@@ -1,11 +1,15 @@
-app = "swingdoctor-api"
-primary_region = "ord"  # Chicago — closest to user
+app = "swing-doctor-api"
+primary_region = "ord"  # Chicago — closest to Minnesota
 
 [build]
   dockerfile = "Dockerfile"
 
+[deploy]
+  strategy = "rolling"
+
 [env]
   ENVIRONMENT = "production"
+  LOG_LEVEL = "info"
   PORT = "8000"
   ALLOWED_ORIGINS = "https://swing.doctor,https://www.swing.doctor"
 
@@ -14,7 +18,7 @@ primary_region = "ord"  # Chicago — closest to user
   force_https = true
   auto_stop_machines = "stop"
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
   processes = ["app"]
 
   [http_service.concurrency]
@@ -34,3 +38,7 @@ primary_region = "ord"  # Chicago — closest to user
     interval = "30s"
     timeout = "5s"
     path = "/health"
+
+[mounts]
+  source = "swing_doctor_data"
+  destination = "/data"
