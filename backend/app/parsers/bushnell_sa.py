@@ -15,8 +15,11 @@ Column mapping (0-indexed):
   0: Index, 1: Date, 2: Time, 3: Carry, 4: ?, 5: Apex
   6: Offline, 7: ?, 8: Landing Angle, 9: ?, 10: Ball Speed
   11: Launch Angle, 12: Launch Direction, 13: Side Spin, 14: Back Spin
-  15: Spin Rate, 16: Spin Axis/Club Speed, 17: ?, 18: Smash Factor
-  19: Attack Angle, 20: Club Path, ...27: Face Angle
+  15: Spin Rate, 16: Spin Axis, 17: ?, 18: Smash Factor
+  19: Attack Angle, 20: Club Path, 21: Face to Path, 22: ?, 23: Dynamic Loft,
+  24-26: ?, 27: Face Angle
+  Note: Club speed is NOT in the Shot Analysis format (ball-data export).
+  The DrivingRange and Session Export formats provide club speed.
 """
 
 import re
@@ -183,7 +186,8 @@ class BushnellShotAnalysisParser(BaseParser):
                     else None
                 ),
                 smash_factor=_num(cols[18]) if len(cols) > 18 else None,
-                club_speed_mph=_num(cols[16]) if len(cols) > 16 else None,
+                face_to_path_deg=_parse_suffix_dir(cols[21]) if len(cols) > 21 else None,
+                dynamic_loft_deg=_num(cols[23]) if len(cols) > 23 else None,
             )
 
             shots_by_date.setdefault(raw_date, []).append(shot)

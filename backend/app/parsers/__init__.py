@@ -26,15 +26,13 @@ from app.parsers.bushnell_session import BushnellSessionParser
 
 # Parser registry — order matters for detection priority.
 # More specific formats should come first to avoid false positives.
+# All Bushnell formats share the Foresight GC3 engine.
 PARSERS: list[BaseParser] = [
     BushnellSessionParser(),
     BushnellShotAnalysisParser(),
     BushnellDrivingRangeParser(),
-    # Future parsers:
-    # GarminR10Parser(),
-    # SkyTrakParser(),
-    # FlightScopeParser(),
-    # TrackManParser(),
+    # Future parsers (add when real data files available):
+    # GarminR10Parser(), SkyTrakParser(), FlightScopeParser(), etc.
 ]
 
 
@@ -57,8 +55,8 @@ def detect_and_parse(content: str, filename: str = "") -> list[ParsedSession]:
 
     raise UnsupportedFormatError(
         f"Could not identify the file format for '{filename}'. "
-        "Supported formats: Bushnell Launch Pro (DrivingRange, Shot Analysis, Session Export). "
-        "More formats coming soon."
+        "Supported formats: Bushnell Launch Pro / Foresight GC3 "
+        "(DrivingRange, Shot Analysis, Session Export)."
     )
 
 
