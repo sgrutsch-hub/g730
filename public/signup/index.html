@@ -238,25 +238,45 @@ async function handleSubmit(e) {
     localStorage.setItem('sd_access_token', tokens.access_token);
     localStorage.setItem('sd_refresh_token', tokens.refresh_token);
 
-    // Step 2: Create Stripe Checkout
+    // For login: check subscription status — if paid, go straight to app
+    if (mode === 'login') {
+      try {
+        const statusRes = await fetch(`${API}/billing/status`, {
+          headers: { 'Authorization': `Bearer ${tokens.access_token}` },
+        });
+        if (statusRes.ok) {
+          const status = await statusRes.json();
+          if (status.is_active) {
+            window.location.href = '/app/';
+            return;
+          }
+        }
+      } catch (e) { /* fall through to checkout */ }
+    }
+
+    // Step 2: Create Stripe Checkout (new signups or unpaid logins)
     document.getElementById('step2').classList.add('active');
 
-    const checkoutRes = await fetch(`${API}/billing/checkout`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${tokens.access_token}`,
-      },
-      body: JSON.stringify({
-        price_id: 'price_1TDZg8Q9ywd0WYiKqOU7QX2c',
-        success_url: `${location.origin}/app/welcome/`,
-        cancel_url: `${location.origin}/signup/?canceled=true`,
-      }),
-    });
+    let checkoutRes;
+    try {
+      checkoutRes = await fetch(`${API}/billing/checkout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokens.access_token}`,
+        },
+        body: JSON.stringify({
+          price_id: 'price_1TDZg8Q9ywd0WYiKqOU7QX2c',
+          success_url: `${location.origin}/app/welcome/`,
+          cancel_url: `${location.origin}/signup/?canceled=true`,
+        }),
+      });
+    } catch (e) {
+      window.location.href = '/app/welcome/';
+      return;
+    }
 
     if (!checkoutRes.ok) {
-      // If checkout fails (e.g. no Stripe price configured yet), go straight to app
-      console.warn('Checkout not configured, redirecting to welcome');
       window.location.href = '/app/welcome/';
       return;
     }
