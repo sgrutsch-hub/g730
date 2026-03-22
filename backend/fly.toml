@@ -1,44 +1,44 @@
-app = "swing-doctor-api"
-primary_region = "ord"  # Chicago — closest to Minnesota
+# fly.toml app configuration file generated for swing-doctor-api on 2026-03-21T19:29:56-05:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'swing-doctor-api'
+primary_region = 'ord'
 
 [build]
-  dockerfile = "Dockerfile"
+  dockerfile = 'Dockerfile'
 
 [deploy]
-  strategy = "rolling"
+  strategy = 'rolling'
 
 [env]
-  ENVIRONMENT = "production"
-  LOG_LEVEL = "info"
-  PORT = "8000"
-  ALLOWED_ORIGINS = "https://swing.doctor,https://www.swing.doctor"
+  ENVIRONMENT = 'production'
+  LOG_LEVEL = 'info'
+  PORT = '8000'
 
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 1
-  processes = ["app"]
+  processes = ['app']
 
   [http_service.concurrency]
-    type = "requests"
+    type = 'requests'
     hard_limit = 250
     soft_limit = 200
-
-[[vm]]
-  memory = "512mb"
-  cpu_kind = "shared"
-  cpus = 1
 
 [checks]
   [checks.health]
     port = 8000
-    type = "http"
-    interval = "30s"
-    timeout = "5s"
-    path = "/health"
+    type = 'http'
+    interval = '30s'
+    timeout = '5s'
+    path = '/health'
 
-[mounts]
-  source = "swing_doctor_data"
-  destination = "/data"
+[[vm]]
+  cpu_kind = 'shared'
+  cpus = 1
+  memory_mb = 512
