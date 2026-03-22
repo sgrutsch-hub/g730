@@ -5,32 +5,33 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0d1117">
-<meta name="apple-mobile-web-app-title" content="Swing Doctor">
+<meta name="theme-color" content="#0a0f0a">
+<meta name="apple-mobile-web-app-title" content="SwingDoctor">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<title>Swing Doctor</title>
+<title>SwingDoctor</title>
 <link rel="manifest" href="manifest.json">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
   :root, [data-theme="dark"] {
-    --bg: #0d1117; --bg2: #161b22; --bg3: #1c2333;
-    --text: #e6edf3; --text2: #8b949e; --text3: #6e7681;
-    --accent: #58a6ff; --accent2: #388bfd; --green: #3fb950; --green2: #238636;
-    --blue: #58a6ff; --gold: #d29922; --teal: #2ea99a;
-    --border: #30363d; --red: #f85149; --orange: #d18616;
-    --purple: #bc8cff; --pink: #f778ba;
+    --bg: #0a0f0a; --bg2: #111a11; --bg3: #162016;
+    --text: #f0f4f0; --text2: #9ca89c; --text3: #6b7b6b;
+    --accent: #10b981; --accent2: #059669; --green: #10b981; --green2: #059669;
+    --blue: #10b981; --gold: #d4a843; --teal: #2ea99a;
+    --border: #1a2e1a; --red: #f85149; --orange: #d18616;
+    --purple: #a78bfa; --pink: #f472b6;
   }
   [data-theme="light"] {
-    --bg: #ffffff; --bg2: #f6f8fa; --bg3: #e8ecf0;
-    --text: #1f2328; --text2: #656d76; --text3: #8b949e;
-    --accent: #0969da; --accent2: #0550ae; --green: #1a7f37; --green2: #1a7f37;
-    --blue: #0969da; --gold: #9a6700; --teal: #1b7c83;
-    --border: #d0d7de; --red: #cf222e; --orange: #bc4c00;
-    --purple: #8250df; --pink: #bf3989;
+    --bg: #f8faf8; --bg2: #eef2ee; --bg3: #dfe6df;
+    --text: #1a2e1a; --text2: #4a5a4a; --text3: #6b7b6b;
+    --accent: #059669; --accent2: #047857; --green: #059669; --green2: #047857;
+    --blue: #059669; --gold: #92790c; --teal: #1b7c83;
+    --border: #c8d4c8; --red: #dc2626; --orange: #c2410c;
+    --purple: #7c3aed; --pink: #db2777;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
     background: var(--bg); color: var(--text);
     -webkit-font-smoothing: antialiased;
     padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0;
@@ -47,7 +48,7 @@
   }
   .hdr-btn:active { background: var(--accent2); color: #fff; }
   .hdr-btn.icon-only { padding: 6px 8px; }
-  .hdr-btn.import-btn { border-color: var(--accent); }
+  .hdr-btn.import-btn { border-color: var(--green); color: var(--green); }
   .subtitle { font-size: 11px; color: var(--text3); margin-bottom: 12px; }
 
   .filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
@@ -220,14 +221,17 @@
 </head>
 <body>
 <div class="loading-overlay" id="loadingOverlay">
-  <div>Loading Swing Doctor...</div>
+  <div>Loading SwingDoctor...</div>
 </div>
 <div class="toast" id="toast"></div>
 <input type="file" id="fileInput" accept=".csv,.CSV" multiple style="display:none" onchange="handleFileImport(event)">
 
 <div class="container">
   <div class="header">
-    <h1>Swing Doctor</h1>
+    <h1 style="display:flex;align-items:center;gap:8px">
+      <img src="/App_icon.png" alt="" style="width:28px;height:28px;border-radius:6px">
+      <img src="/WordArt-white.png" alt="SwingDoctor" style="height:20px">
+    </h1>
     <div class="header-btns" style="position:relative">
       <div class="profile-avatar" id="profileAvatar" onclick="toggleProfileMenu()" title="Profile"></div>
       <div class="profile-menu hidden" id="profileMenu">
@@ -392,7 +396,7 @@
         <button class="add-btn" onclick="addBallType()">+ Add Ball</button>
       </div>
       <div class="card" id="cloudAccountCard">
-        <div class="card-title">Swing Doctor Cloud</div>
+        <div class="card-title">SwingDoctor Cloud</div>
         <div id="cloudNotConnected">
           <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px">
             Create a free account to unlock cloud sync, AI coaching, and access your data from any device.
@@ -434,7 +438,7 @@
     </div>
   </div>
 
-  <div class="footer">Swing Doctor &middot; Your data should coach you.</div>
+  <div class="footer">SwingDoctor &middot; Your data should coach you.</div>
 </div>
 
 <script>
@@ -2314,7 +2318,7 @@ function showInstallBanner() {
   const banner = document.createElement('div');
   banner.className = 'install-banner';
   banner.innerHTML = `<div class="install-banner-icon">G7</div><div class="install-banner-text">
-    <div class="install-banner-title">Add Swing Doctor to Home Screen</div>
+    <div class="install-banner-title">Add SwingDoctor to Home Screen</div>
     <div class="install-banner-sub">Tap <strong style="font-size:16px">&#9769;</strong> then "Add to Home Screen"</div></div>
     <button class="install-banner-close" onclick="dismissInstallBanner()">&times;</button>`;
   document.body.appendChild(banner);
