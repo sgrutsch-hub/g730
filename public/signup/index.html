@@ -295,6 +295,11 @@ async function handleSubmit(e) {
 if (new URLSearchParams(location.search).get('canceled')) {
   document.getElementById('errorMsg').textContent = 'Checkout canceled. Try again when ready.';
 }
+
+// Auto-switch to login mode if #login hash
+if (location.hash === '#login') {
+  toggleMode('login');
+}
 </script>
 </body>
 </html>
