@@ -249,15 +249,15 @@ async function handleSubmit(e) {
       },
       body: JSON.stringify({
         price_id: 'price_1TDZg8Q9ywd0WYiKqOU7QX2c',
-        success_url: `${location.origin}/app/?welcome=true`,
+        success_url: `${location.origin}/app/welcome/`,
         cancel_url: `${location.origin}/signup/?canceled=true`,
       }),
     });
 
     if (!checkoutRes.ok) {
       // If checkout fails (e.g. no Stripe price configured yet), go straight to app
-      console.warn('Checkout not configured, redirecting to app');
-      window.location.href = '/app/?welcome=true';
+      console.warn('Checkout not configured, redirecting to welcome');
+      window.location.href = '/app/welcome/';
       return;
     }
 

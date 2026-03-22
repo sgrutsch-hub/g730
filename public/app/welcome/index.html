@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Welcome to SwingDoctor</title>
+<link rel="icon" href="/apple-touch-icon.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', system-ui, sans-serif;
+    background: #0a0f0a; color: #e8e8e8;
+    min-height: 100vh; padding: 20px;
+  }
+  .wizard {
+    max-width: 520px; margin: 0 auto; padding-top: 20px;
+  }
+
+  /* Header */
+  .wiz-header { text-align: center; margin-bottom: 24px; }
+  .wiz-header img { width: 44px; height: 44px; border-radius: 10px; margin-bottom: 8px; }
+  .wiz-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .wiz-sub { font-size: 13px; color: #6b7b6b; }
+
+  /* Progress */
+  .progress { display: flex; gap: 6px; justify-content: center; margin-bottom: 28px; }
+  .progress-dot { width: 10px; height: 10px; border-radius: 50%; background: #1a2a1a; transition: all 0.3s; }
+  .progress-dot.active { background: #10b981; width: 28px; border-radius: 5px; }
+  .progress-dot.done { background: #10b981; }
+
+  /* Steps */
+  .step { display: none; }
+  .step.active { display: block; }
+  .step-title { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .step-desc { font-size: 13px; color: #6b7b6b; margin-bottom: 20px; }
+
+  /* Form elements */
+  .field { margin-bottom: 14px; }
+  .field label { font-size: 12px; font-weight: 600; color: #8a9a8a; display: block; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .field input, .field select {
+    width: 100%; padding: 11px 14px; font-size: 14px; font-family: inherit;
+    background: #111611; border: 1px solid #1a2a1a; border-radius: 10px; color: #e8e8e8;
+    transition: border-color 0.2s; -webkit-appearance: none; appearance: none;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: #10b981; }
+  .field input::placeholder { color: #3a4a3a; }
+  .field select { background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%236b7b6b' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+  /* Toggle */
+  .toggle-group { display: flex; gap: 0; border: 1px solid #1a2a1a; border-radius: 10px; overflow: hidden; }
+  .toggle-opt {
+    flex: 1; padding: 10px; text-align: center; font-size: 14px; font-weight: 600;
+    cursor: pointer; background: #111611; color: #6b7b6b; transition: all 0.2s; border: none; font-family: inherit;
+  }
+  .toggle-opt.active { background: #10b981; color: #0a0f0a; }
+
+  /* Buttons */
+  .btn-row { display: flex; gap: 10px; margin-top: 24px; }
+  .btn {
+    flex: 1; padding: 13px; font-size: 15px; font-weight: 700; font-family: inherit;
+    border: none; border-radius: 12px; cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .btn-primary { background: #10b981; color: #0a0f0a; }
+  .btn-primary:hover { background: #34d399; }
+  .btn-secondary { background: #1a2a1a; color: #8a9a8a; }
+  .btn-secondary:hover { background: #243424; }
+  .skip-link { text-align: center; margin-top: 12px; }
+  .skip-link a { font-size: 13px; color: #4a5a4a; text-decoration: none; }
+  .skip-link a:hover { color: #10b981; }
+
+  /* Bag builder */
+  .bag-presets { display: flex; gap: 8px; margin-bottom: 16px; }
+  .preset-btn {
+    flex: 1; padding: 10px; font-size: 12px; font-weight: 600; font-family: inherit;
+    background: #111611; border: 1px solid #1a2a1a; border-radius: 10px;
+    color: #8a9a8a; cursor: pointer; text-align: center; transition: all 0.2s;
+  }
+  .preset-btn:hover, .preset-btn.active { border-color: #10b981; color: #10b981; }
+  .club-row {
+    display: flex; gap: 8px; align-items: center; margin-bottom: 8px;
+    animation: fadeIn 0.2s ease-out;
+  }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
+  .club-row select, .club-row input {
+    padding: 9px 10px; font-size: 13px; font-family: inherit;
+    background: #111611; border: 1px solid #1a2a1a; border-radius: 8px; color: #e8e8e8;
+  }
+  .club-row select { flex: 0 0 130px; -webkit-appearance: none; appearance: none; }
+  .club-row input { flex: 1; }
+  .club-row input::placeholder { color: #3a4a3a; }
+  .club-del { background: none; border: none; color: #3a4a3a; cursor: pointer; font-size: 18px; padding: 4px 8px; }
+  .club-del:hover { color: #ef4444; }
+  .add-club-btn {
+    width: 100%; padding: 8px; font-size: 13px; font-family: inherit;
+    background: none; border: 1px dashed #1a2a1a; border-radius: 8px;
+    color: #10b981; cursor: pointer; margin-top: 4px;
+  }
+  .add-club-btn:hover { border-color: #10b981; background: #111611; }
+
+  /* Upload zone */
+  .upload-zone {
+    border: 2px dashed #1a2a1a; border-radius: 16px; padding: 40px 20px;
+    text-align: center; cursor: pointer; transition: all 0.2s;
+  }
+  .upload-zone:hover, .upload-zone.dragover { border-color: #10b981; background: #111611; }
+  .upload-zone-icon { font-size: 36px; margin-bottom: 8px; }
+  .upload-zone-text { font-size: 14px; color: #8a9a8a; margin-bottom: 4px; }
+  .upload-zone-hint { font-size: 12px; color: #4a5a4a; }
+  .upload-tip {
+    margin-top: 16px; padding: 12px; background: #111611; border: 1px solid #1a2a1a;
+    border-radius: 10px; font-size: 12px; color: #8a9a8a; line-height: 1.5;
+  }
+  .upload-tip strong { color: #10b981; }
+  .upload-result { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 13px; font-weight: 600; }
+  .upload-result.success { background: #0f2a1a; color: #10b981; border: 1px solid #10b981; }
+  .upload-result.error { background: #2a0f0f; color: #ef4444; border: 1px solid #ef4444; }
+
+  /* Final step */
+  .summary-card {
+    background: #111611; border: 1px solid #1a2a1a; border-radius: 12px;
+    padding: 16px; margin-bottom: 12px;
+  }
+  .summary-label { font-size: 11px; color: #4a5a4a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .summary-value { font-size: 15px; font-weight: 600; color: #10b981; }
+  .confetti { font-size: 32px; text-align: center; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="wizard">
+  <div class="wiz-header">
+    <img src="/App_icon.png" alt="SwingDoctor">
+    <div class="wiz-title">Welcome to SwingDoctor</div>
+    <div class="wiz-sub">Let's set up your profile in 2 minutes</div>
+  </div>
+
+  <div class="progress">
+    <div class="progress-dot active" id="dot0"></div>
+    <div class="progress-dot" id="dot1"></div>
+    <div class="progress-dot" id="dot2"></div>
+    <div class="progress-dot" id="dot3"></div>
+  </div>
+
+  <!-- ═══ STEP 1: About Your Game ═══ -->
+  <div class="step active" id="step0">
+    <div class="step-title">About Your Game</div>
+    <div class="step-desc">Tell us about your setup so we can optimize your experience.</div>
+
+    <div class="field">
+      <label>Launch Monitor</label>
+      <select id="launchMonitor">
+        <option value="">Select your monitor...</option>
+        <option value="Bushnell Launch Pro">Bushnell Launch Pro (GC3)</option>
+        <option value="SkyTrak">SkyTrak</option>
+        <option value="SkyTrak+">SkyTrak+</option>
+        <option value="Garmin R10">Garmin Approach R10</option>
+        <option value="FlightScope Mevo">FlightScope Mevo</option>
+        <option value="FlightScope Mevo+">FlightScope Mevo+</option>
+        <option value="FlightScope Mevo Gen2">FlightScope Mevo Gen2</option>
+        <option value="Foresight GCQuad">Foresight GCQuad</option>
+        <option value="Foresight GC3">Foresight GC3</option>
+        <option value="Trackman">Trackman</option>
+        <option value="Uneekor EYE XO2">Uneekor EYE XO2</option>
+        <option value="Uneekor QED">Uneekor QED</option>
+        <option value="Full Swing KIT">Full Swing KIT</option>
+        <option value="Rapsodo MLM2PRO">Rapsodo MLM2PRO</option>
+        <option value="Other">Other</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label>Handedness</label>
+      <div class="toggle-group">
+        <button class="toggle-opt active" onclick="setHand('right')" id="handRight">Right-Handed</button>
+        <button class="toggle-opt" onclick="setHand('left')" id="handLeft">Left-Handed</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Handicap (optional)</label>
+      <input type="number" id="handicap" placeholder="e.g., 15" min="0" max="54" step="0.1">
+    </div>
+
+    <div class="field">
+      <label>Default Golf Ball</label>
+      <input type="text" id="defaultBall" placeholder="e.g., Titleist Pro V1">
+    </div>
+
+    <div class="field">
+      <label>Elevation (feet above sea level)</label>
+      <input type="number" id="elevation" placeholder="e.g., 900" value="0">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="nextStep()">Continue</button>
+    </div>
+    <div class="skip-link"><a href="/app/">Skip setup →</a></div>
+  </div>
+
+  <!-- ═══ STEP 2: Build Your Bag ═══ -->
+  <div class="step" id="step1">
+    <div class="step-title">Build Your Bag</div>
+    <div class="step-desc">Add the clubs you use so we can track your performance by club.</div>
+
+    <div class="bag-presets">
+      <button class="preset-btn" onclick="loadPreset('standard')">Standard Set</button>
+      <button class="preset-btn" onclick="loadPreset('iron')">Irons Only</button>
+      <button class="preset-btn" onclick="loadPreset('custom')">Start Empty</button>
+    </div>
+
+    <div id="clubList"></div>
+    <button class="add-club-btn" onclick="addClubRow()">+ Add Club</button>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep()">Back</button>
+      <button class="btn btn-primary" onclick="nextStep()">Continue</button>
+    </div>
+    <div class="skip-link"><a href="/app/">Skip setup →</a></div>
+  </div>
+
+  <!-- ═══ STEP 3: Upload First Session ═══ -->
+  <div class="step" id="step2">
+    <div class="step-title">Upload Your First Session</div>
+    <div class="step-desc">Drop a CSV export from your launch monitor to see your analytics.</div>
+
+    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('csvInput').click()">
+      <div class="upload-zone-icon">📂</div>
+      <div class="upload-zone-text">Drag & drop CSV file here</div>
+      <div class="upload-zone-hint">or click to browse</div>
+    </div>
+    <input type="file" id="csvInput" accept=".csv,.CSV" multiple style="display:none" onchange="handleUpload(event)">
+    <div id="uploadResult"></div>
+
+    <div class="upload-tip" id="uploadTip"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep()">Back</button>
+      <button class="btn btn-primary" onclick="nextStep()">Continue</button>
+    </div>
+    <div class="skip-link"><a href="/app/">Skip upload →</a></div>
+  </div>
+
+  <!-- ═══ STEP 4: All Set ═══ -->
+  <div class="step" id="step3">
+    <div class="confetti">🎉</div>
+    <div class="step-title" style="text-align:center">You're All Set!</div>
+    <div class="step-desc" style="text-align:center">Your profile is ready. Time to analyze your game.</div>
+
+    <div class="summary-card">
+      <div class="summary-label">Launch Monitor</div>
+      <div class="summary-value" id="sumMonitor">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Clubs in Bag</div>
+      <div class="summary-value" id="sumClubs">—</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Sessions Uploaded</div>
+      <div class="summary-value" id="sumSessions">—</div>
+    </div>
+
+    <div class="btn-row">
+      <a href="/app/" class="btn btn-primary" style="text-decoration:none">Go to Dashboard →</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = location.hostname === 'localhost' || location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000/api/v1'
+  : 'https://swing-doctor-api.fly.dev/api/v1';
+
+let currentStep = 0;
+let profileId = null;
+let handedness = 'right';
+let clubsAdded = 0;
+let sessionsUploaded = 0;
+
+const CLUB_OPTIONS = [
+  'Driver', '3 Wood', '5 Wood', '7 Wood',
+  '2 Hybrid', '3 Hybrid', '4 Hybrid', '5 Hybrid',
+  '2 Iron', '3 Iron', '4 Iron', '5 Iron', '6 Iron', '7 Iron', '8 Iron', '9 Iron',
+  'PW', 'GW', 'SW', 'LW', 'Putter'
+];
+
+const STANDARD_BAG = ['Driver', '3 Wood', '4 Hybrid', '5 Iron', '6 Iron', '7 Iron', '8 Iron', '9 Iron', 'PW', 'GW', 'SW', 'LW'];
+const IRONS_BAG = ['5 Iron', '6 Iron', '7 Iron', '8 Iron', '9 Iron', 'PW', 'GW', 'SW'];
+
+const MONITOR_TIPS = {
+  'Bushnell Launch Pro': '<strong>Bushnell Launch Pro:</strong> In FSX Play, go to Shot Analysis or Driving Range session → Export → Save as CSV. You can also use the Session export from the Bushnell Golf app.',
+  'SkyTrak': '<strong>SkyTrak:</strong> In the SkyTrak app, open a session → tap Export → choose Excel/CSV format.',
+  'SkyTrak+': '<strong>SkyTrak+:</strong> In the SkyTrak app, open a session → tap Export → choose Excel/CSV format.',
+  'Garmin R10': '<strong>Garmin R10:</strong> In the Garmin Golf app, go to your driving range session → Export session data as CSV.',
+  'FlightScope Mevo': '<strong>FlightScope Mevo:</strong> Go to myflightscope.com → Sessions → select session → Export to CSV.',
+  'FlightScope Mevo+': '<strong>FlightScope Mevo+:</strong> Go to myflightscope.com → Sessions → select session → Export to CSV.',
+  'FlightScope Mevo Gen2': '<strong>FlightScope Mevo Gen2:</strong> In the FS Golf app → Sessions → Export CSV.',
+  'Foresight GCQuad': '<strong>Foresight GCQuad:</strong> In FSX software → Shot Analysis → Save CSV button.',
+  'Foresight GC3': '<strong>Foresight GC3:</strong> In FSX software → Shot Analysis → Save CSV button.',
+  'Trackman': '<strong>Trackman:</strong> In Trackman Performance Studio → Sessions → Export.',
+};
+
+// ── Auth ──
+function getToken() { return localStorage.getItem('sd_access_token'); }
+
+async function apiFetch(path, opts = {}) {
+  const token = getToken();
+  if (!token) { window.location.href = '/signup/'; return; }
+  const res = await fetch(`${API}${path}`, {
+    ...opts,
+    headers: { 'Authorization': `Bearer ${token}`, ...(opts.headers || {}) },
+  });
+  if (res.status === 401) { window.location.href = '/signup/'; return; }
+  return res;
+}
+
+// ── Init ──
+async function init() {
+  if (!getToken()) { window.location.href = '/signup/'; return; }
+
+  // Get default profile
+  try {
+    const res = await apiFetch('/profiles');
+    if (!res.ok) throw new Error('Failed to load profiles');
+    const profiles = await res.json();
+    if (profiles.length > 0) {
+      profileId = profiles[0].id;
+    }
+  } catch (e) {
+    console.error('Init error:', e);
+  }
+
+  // Show monitor-specific upload tip
+  updateUploadTip();
+}
+
+// ── Steps ──
+function showStep(idx) {
+  document.querySelectorAll('.step').forEach((el, i) => {
+    el.classList.toggle('active', i === idx);
+  });
+  document.querySelectorAll('.progress-dot').forEach((el, i) => {
+    el.classList.remove('active', 'done');
+    if (i === idx) el.classList.add('active');
+    else if (i < idx) el.classList.add('done');
+  });
+  currentStep = idx;
+
+  // Save on step transitions
+  if (idx === 1) saveProfile();
+  if (idx === 2) { saveClubs(); updateUploadTip(); }
+  if (idx === 3) updateSummary();
+}
+
+function nextStep() { showStep(Math.min(currentStep + 1, 3)); }
+function prevStep() { showStep(Math.max(currentStep - 1, 0)); }
+
+// ── Step 1: Profile ──
+function setHand(h) {
+  handedness = h;
+  document.getElementById('handRight').classList.toggle('active', h === 'right');
+  document.getElementById('handLeft').classList.toggle('active', h === 'left');
+}
+
+async function saveProfile() {
+  if (!profileId) return;
+  const data = {
+    launch_monitor: document.getElementById('launchMonitor').value || null,
+    default_ball: document.getElementById('defaultBall').value.trim() || null,
+    elevation_ft: parseInt(document.getElementById('elevation').value) || 0,
+    handicap_index: parseFloat(document.getElementById('handicap').value) || null,
+    settings: { handedness },
+  };
+
+  try {
+    await apiFetch(`/profiles/${profileId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+  } catch (e) { console.error('Save profile error:', e); }
+}
+
+// ── Step 2: Bag ──
+function loadPreset(type) {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+
+  const clubs = type === 'standard' ? STANDARD_BAG : type === 'iron' ? IRONS_BAG : [];
+  const list = document.getElementById('clubList');
+  list.innerHTML = '';
+  clubs.forEach(c => addClubRow(c));
+}
+
+function addClubRow(defaultClub = '') {
+  const list = document.getElementById('clubList');
+  const row = document.createElement('div');
+  row.className = 'club-row';
+  row.innerHTML = `
+    <select onchange="this.style.color='#e8e8e8'">
+      <option value="">Club...</option>
+      ${CLUB_OPTIONS.map(c => `<option value="${c}" ${c === defaultClub ? 'selected' : ''}>${c}</option>`).join('')}
+    </select>
+    <input type="text" placeholder="Brand / Model (optional)">
+    <button class="club-del" onclick="this.parentElement.remove()" title="Remove">&times;</button>
+  `;
+  list.appendChild(row);
+}
+
+async function saveClubs() {
+  if (!profileId) return;
+  const rows = document.querySelectorAll('.club-row');
+  clubsAdded = 0;
+
+  for (const row of rows) {
+    const name = row.querySelector('select').value;
+    if (!name) continue;
+    const brand = row.querySelector('input').value.trim();
+
+    try {
+      const res = await apiFetch(`/profiles/${profileId}/clubs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, brand: brand || null, sort_order: clubsAdded }),
+      });
+      if (res.ok) clubsAdded++;
+    } catch (e) { console.error('Add club error:', e); }
+  }
+}
+
+// ── Step 3: Upload ──
+function updateUploadTip() {
+  const monitor = document.getElementById('launchMonitor').value;
+  const tip = MONITOR_TIPS[monitor] || '<strong>Tip:</strong> Export your session data as a CSV file from your launch monitor\'s app or software.';
+  document.getElementById('uploadTip').innerHTML = tip;
+}
+
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  handleFiles(e.dataTransfer.files);
+});
+
+function handleUpload(e) { handleFiles(e.target.files); }
+
+async function handleFiles(files) {
+  if (!profileId || !files.length) return;
+  const resultEl = document.getElementById('uploadResult');
+  resultEl.innerHTML = '';
+
+  let uploaded = 0;
+  let errors = [];
+
+  for (const file of files) {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await apiFetch(`/sessions/upload?profile_id=${profileId}`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        uploaded += Array.isArray(data) ? data.length : 1;
+      } else {
+        const err = await res.json().catch(() => ({}));
+        errors.push(`${file.name}: ${err.detail || err.message || 'Upload failed'}`);
+      }
+    } catch (e) {
+      errors.push(`${file.name}: Network error`);
+    }
+  }
+
+  sessionsUploaded += uploaded;
+
+  if (uploaded > 0) {
+    resultEl.innerHTML = `<div class="upload-result success">✓ ${uploaded} session${uploaded > 1 ? 's' : ''} uploaded successfully</div>`;
+  }
+  if (errors.length) {
+    resultEl.innerHTML += errors.map(e => `<div class="upload-result error">✗ ${e}</div>`).join('');
+  }
+}
+
+// ── Step 4: Summary ──
+function updateSummary() {
+  const monitor = document.getElementById('launchMonitor').value;
+  document.getElementById('sumMonitor').textContent = monitor || 'Not set';
+  document.getElementById('sumClubs').textContent = clubsAdded > 0 ? `${clubsAdded} clubs` : 'None added';
+  document.getElementById('sumSessions').textContent = sessionsUploaded > 0 ? `${sessionsUploaded} session${sessionsUploaded > 1 ? 's' : ''}` : 'None yet';
+}
+
+// Boot
+init();
+</script>
+</body>
+</html>
