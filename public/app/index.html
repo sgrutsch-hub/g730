@@ -282,6 +282,29 @@
     </div>
 
     <div id="tab-overview">
+      <!-- Quick Actions -->
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+        <button class="hdr-btn" onclick="quickCoach('diagnosis')" style="flex:1;justify-content:center;padding:10px;min-width:100px;border-color:var(--green);color:var(--green)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Diagnosis
+        </button>
+        <button class="hdr-btn" onclick="quickCoach('drills')" style="flex:1;justify-content:center;padding:10px;min-width:100px;border-color:var(--gold);color:var(--gold)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></svg>
+          Drills
+        </button>
+        <button class="hdr-btn" onclick="quickCoach('ball')" style="flex:1;justify-content:center;padding:10px;min-width:100px;border-color:var(--purple);color:var(--purple)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+          Ball Rec
+        </button>
+      </div>
+      <!-- Quick coach result area -->
+      <div id="quickCoachResult" class="card" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div class="card-title" id="quickCoachTitle"></div>
+          <button onclick="document.getElementById('quickCoachResult').style.display='none'" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px">&times;</button>
+        </div>
+        <div id="quickCoachBody" style="font-size:13px;line-height:1.7;color:var(--text)"></div>
+      </div>
       <div class="card"><div class="card-title">Session Carry Trend</div><div class="chart-wrap"><canvas id="trendChart"></canvas></div></div>
       <div class="card"><div class="card-title">Carry Distribution</div><div class="chart-wrap"><canvas id="distChart"></canvas></div></div>
     </div>
@@ -1725,6 +1748,103 @@ async function runMigration(username) {
   // Copy ball types
   const oldBT = localStorage.getItem('g730-ball-types');
   if (oldBT) lsSet('ball-types', oldBT);
+}
+
+// ─── Quick Coach (overview buttons) ───
+function quickCoach(mode) {
+  if (!DATA || !DATA.shots.length) { showToast('Import some sessions first'); return; }
+
+  const fs = DATA.shots.filter(s => s.filtered);
+  const clubs = {};
+  fs.forEach(s => { (clubs[s.club] = clubs[s.club] || []).push(s); });
+
+  const resultEl = document.getElementById('quickCoachResult');
+  const titleEl = document.getElementById('quickCoachTitle');
+  const bodyEl = document.getElementById('quickCoachBody');
+
+  if (mode === 'diagnosis') {
+    titleEl.textContent = '🩺 Swing Diagnosis';
+    let html = '';
+
+    for (const [club, shots] of Object.entries(clubs).sort((a,b) => (({'Driver':1,'3 Wood':2,'5 Wood':3,'3 Hybrid':6,'4 Hybrid':7,'5 Hybrid':8,'5 Iron':12,'6 Iron':13,'7 Iron':14,'8 Iron':15,'9 Iron':16,'PW':17,'GW':18,'SW':19,'LW':20}[a[0]]||50) - (({'Driver':1,'3 Wood':2,'5 Wood':3,'3 Hybrid':6,'4 Hybrid':7,'5 Hybrid':8,'5 Iron':12,'6 Iron':13,'7 Iron':14,'8 Iron':15,'9 Iron':16,'PW':17,'GW':18,'SW':19,'LW':20}[b[0]]||50)))) {
+      if (shots.length < 5) continue;
+      const carries = shots.map(s=>s.carry).filter(Boolean);
+      const offlines = shots.map(s=>s.offline).filter(c=>c!=null);
+      const spins = shots.map(s=>s.spinRate).filter(Boolean);
+      const avgCarry = _avg(carries);
+      const stdCarry = _std(carries);
+      const stdOff = _std(offlines);
+      const leftPct = _pct(offlines, v=>v<0);
+      const avgSpin = _avg(spins);
+
+      const issues = [];
+      if (stdCarry > 10) issues.push(`<span style="color:var(--red)">⚠</span> Carry inconsistent (${stdCarry.toFixed(1)} yd spread)`);
+      if (stdOff > 15) issues.push(`<span style="color:var(--red)">⚠</span> Wide dispersion (${stdOff.toFixed(1)} yds)`);
+      if (leftPct > 70) issues.push(`<span style="color:var(--orange)">↙</span> Pull bias (${leftPct.toFixed(0)}% left)`);
+      else if (leftPct < 30) issues.push(`<span style="color:var(--orange)">↘</span> Push/slice (${(100-leftPct).toFixed(0)}% right)`);
+      if (avgSpin > 6500 && club.includes('Iron')) issues.push(`<span style="color:var(--orange)">🌀</span> High spin (${avgSpin.toFixed(0)} rpm)`);
+
+      const status = issues.length === 0 ? '<span style="color:var(--green)">✓</span>' : '';
+      html += `<div style="padding:8px 0;border-bottom:1px solid var(--border)">`;
+      html += `<div style="font-weight:600;margin-bottom:4px">${club} <span style="font-weight:400;color:var(--text3);font-size:12px">${shots.length} shots · avg ${avgCarry?.toFixed(0)||'—'} yds</span> ${status}</div>`;
+      if (issues.length) html += issues.map(i => `<div style="font-size:12px;padding:2px 0 2px 8px">${i}</div>`).join('');
+      else html += `<div style="font-size:12px;color:var(--green);padding:2px 0 2px 8px">Looking good — consistent and on target</div>`;
+      html += `</div>`;
+    }
+    bodyEl.innerHTML = html || '<div style="color:var(--text3)">Need more data for diagnosis</div>';
+
+  } else if (mode === 'drills') {
+    titleEl.textContent = '🎯 Recommended Drills';
+    // Run the local coach to get drills, then display them
+    const hasDispersion = Object.values(clubs).some(shots => { const o = shots.map(s=>s.offline).filter(c=>c!=null); return _std(o) > 12; });
+    const hasConsistency = Object.values(clubs).some(shots => { const c = shots.map(s=>s.carry).filter(Boolean); return _std(c) > 10; });
+    const hasMiss = Object.values(clubs).some(shots => { const o = shots.map(s=>s.offline).filter(c=>c!=null); const lp = _pct(o, v=>v<0); return lp > 70 || lp < 30; });
+
+    let html = '';
+    if (hasConsistency) html += `<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-weight:600;color:var(--gold);margin-bottom:4px">10-Shot Blocks</div><div style="font-size:12px">Hit 10 shots with the same club. Note avg carry and spread. Do 3 blocks per club. Goal: reduce spread by 3+ yards over 4 weeks.</div><div style="font-size:11px;color:var(--text3);margin-top:4px">⏱ 25 min · Focus: consistency</div></div>`;
+    if (hasDispersion) html += `<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-weight:600;color:var(--gold);margin-bottom:4px">Gate Drill</div><div style="font-size:12px">Place two alignment sticks 10 yards apart at your avg carry. Hit 20 shots — track how many land between them. Start with your best club.</div><div style="font-size:11px;color:var(--text3);margin-top:4px">⏱ 20 min · Focus: accuracy</div></div>`;
+    if (hasMiss) html += `<div style="padding:10px 0;border-bottom:1px solid var(--border)"><div style="font-weight:600;color:var(--gold);margin-bottom:4px">Path Correction</div><div style="font-size:12px">Place a headcover 4" outside (pull) or inside (slice) the ball. Half swings avoiding it, then gradually go full. Forces your path to correct.</div><div style="font-size:11px;color:var(--text3);margin-top:4px">⏱ 15 min · Focus: swing path</div></div>`;
+    if (!html) html = `<div style="padding:10px 0"><div style="font-weight:600;color:var(--green);margin-bottom:4px">Stock Shot Routine</div><div style="font-size:12px">Your numbers look solid. Hit 10 shots per club through your bag focusing on tempo and target. Track any club that drops 5+ yards — that's your early warning.</div><div style="font-size:11px;color:var(--text3);margin-top:4px">⏱ 30 min · Focus: maintenance</div></div>`;
+    html += `<div style="margin-top:10px;font-size:11px;color:var(--text3)">For full AI coaching with personalized plans, use the AI Coach tab.</div>`;
+    bodyEl.innerHTML = html;
+
+  } else if (mode === 'ball') {
+    titleEl.textContent = '🏌️ Ball Recommendation';
+    const allSpeeds = fs.map(s=>s.ballSpeed).filter(Boolean);
+    const allSpins = fs.map(s=>s.spinRate).filter(Boolean);
+    const avgSpeed = _avg(allSpeeds);
+    const avgSpin = _avg(allSpins);
+
+    let rec = '', reasoning = '';
+    if (!avgSpeed) {
+      bodyEl.innerHTML = '<div style="color:var(--text3)">Need ball speed data for recommendation</div>';
+      resultEl.style.display = '';
+      return;
+    }
+
+    if (avgSpeed > 150) {
+      rec = 'Titleist Pro V1x or TaylorMade TP5x';
+      reasoning = `Your ball speed (avg ${avgSpeed.toFixed(0)} mph) is tour-level. You generate enough speed to compress a high-compression ball and benefit from the lower spin off the driver for max distance. The firmer feel gives you better feedback on full shots.`;
+    } else if (avgSpeed > 130) {
+      rec = 'Titleist Pro V1 or TaylorMade TP5';
+      reasoning = `Your ball speed (avg ${avgSpeed.toFixed(0)} mph) is solid. A mid-compression tour ball gives you the best blend of distance off the tee and spin control around the greens. Avoid the "x" models unless you prefer a firmer feel.`;
+    } else if (avgSpeed > 110) {
+      rec = 'Callaway Chrome Soft or Bridgestone Tour B RX';
+      reasoning = `Your ball speed (avg ${avgSpeed.toFixed(0)} mph) is in the mid range. A softer tour ball helps you maximize compression without needing extreme swing speed. You'll get better feel on short game shots.`;
+    } else {
+      rec = 'Callaway Supersoft or Srixon Soft Feel';
+      reasoning = `Your ball speed (avg ${avgSpeed.toFixed(0)} mph) benefits from a low-compression ball that compresses easily. You'll get more distance and better feel than a firm tour ball.`;
+    }
+
+    if (avgSpin) {
+      if (avgSpin > 5500) reasoning += ` Your spin rate (${avgSpin.toFixed(0)} rpm avg) is on the high side — a lower-spin ball option could help reduce ballooning on full shots.`;
+      else if (avgSpin < 3000) reasoning += ` Your spin rate (${avgSpin.toFixed(0)} rpm avg) is low — prioritize a ball with good greenside spin to help shots hold the putting surface.`;
+    }
+
+    bodyEl.innerHTML = `<div style="font-size:16px;font-weight:700;color:var(--green);margin-bottom:8px">${rec}</div><div style="font-size:13px;line-height:1.6">${reasoning}</div><div style="margin-top:10px;padding:10px;background:var(--bg3);border-radius:8px;font-size:12px;color:var(--text3)">💡 Buy a sleeve and bring it to your next sim session — we'll compare the numbers head to head.</div>`;
+  }
+
+  resultEl.style.display = '';
 }
 
 // ─── Init ───
