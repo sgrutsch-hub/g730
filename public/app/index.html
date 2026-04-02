@@ -902,7 +902,7 @@ function processAllData(storedSessions) {
     clubSummaries.push({ club, ballSpeedAvg: avg(speeds), carryAvg: avg(carries), carryMed: median(carries),
       carryStd: std(carries), spinRateAvg: avg(spins), shotCount: shots.length, gap: null });
   }
-  clubSummaries.sort((a,b) => b.carryAvg - a.carryAvg);
+  clubSummaries.sort((a,b) => (BAG_ORDER[a.club] ?? 99) - (BAG_ORDER[b.club] ?? 99));
   for (let i = 0; i < clubSummaries.length - 1; i++) clubSummaries[i].gap = clubSummaries[i].carryAvg - clubSummaries[i+1].carryAvg;
 
   // Calibration
