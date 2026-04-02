@@ -1010,47 +1010,45 @@ async function parseFsxPdf(file) {
 }
 
 async function handleFileImport(event) {
-  const files = event.target.files;
-  if (!files.length) return;
-  let imported = 0, pdfShots = 0;
-  for (const file of files) {
-    const isPdf = file.name.toLowerCase().endsWith('.pdf');
-    if (isPdf) {
-      try {
-        showToast('Reading PDF...');
-        if (!window.pdfjsLib) { showToast('PDF library not loaded — try refreshing'); continue; }
+  const fileList = Array.from(event.target.files);
+  if (!fileList.length) return;
+  event.target.value = ''; // Clear immediately so it doesn't interfere
+  let imported = 0, failed = 0, pdfShots = 0;
+  const total = fileList.length;
+  for (let fi = 0; fi < fileList.length; fi++) {
+    const file = fileList[fi];
+    showToast(`Processing ${fi + 1} of ${total}: ${file.name}`);
+    try {
+      if (file.name.toLowerCase().endsWith('.pdf')) {
+        if (!window.pdfjsLib) { console.error('PDF library not loaded'); failed++; continue; }
         const shots = await parseFsxPdf(file);
-        console.log('PDF parsed:', file.name, shots.length, 'shots');
-        if (!shots.length) { showToast('No shot data found in PDF — check console'); continue; }
-        const date = shots[0].date || '01-01-2026';
-        // Build DrivingRange-format CSV (simplest format, well-tested parser)
-        let csv = `Dates,${date},Place,,Player,,\n`;
-        csv += `Club,Index,Ball Speed(mph),Launch Direction,Launch Angle,Spin Rate,Spin Axis,Back Spin,Side Spin,Apex(yd),Carry(yd),Total(yd),Offline(yd),Landing Angle,Club Path,Face Angle,Attack Angle,Dynamic Loft\n`;
-        shots.forEach(s => {
-          // DrivingRange uses L/R prefix: negative = L, positive = R
-          const dir = v => v == null ? '' : (v < 0 ? `L${Math.abs(v)}` : v > 0 ? `R${v}` : '0');
-          csv += `${s.club},${s.index},${s.ballSpeed||''},${dir(s.launchDirection)},${s.launchAngle||''},${s.spinRate||''},${dir(s.spinAxis)},,,,${s.carry||''},${s.total||''},${dir(s.offline)},${s.landingAngle||''},,,, \n`;
-        });
-        // Use session date + club list in filename to make each PDF unique
+        if (!shots.length) { console.warn('No shots in:', file.name); failed++; continue; }
         const dateStr = shots[0]?.date || 'unknown';
         const clubs = [...new Set(shots.map(s => s.club))].join('-');
         const pdfName = `FSX-${dateStr}-${clubs}-${shots.length}shots.csv`;
+        let csv = `Dates,${dateStr},Place,,Player,,\n`;
+        csv += `Club,Index,Ball Speed(mph),Launch Direction,Launch Angle,Spin Rate,Spin Axis,Back Spin,Side Spin,Apex(yd),Carry(yd),Total(yd),Offline(yd),Landing Angle,Club Path,Face Angle,Attack Angle,Dynamic Loft\n`;
+        const dir = v => v == null ? '' : (v < 0 ? `L${Math.abs(v)}` : v > 0 ? `R${v}` : '0');
+        shots.forEach(s => {
+          csv += `${s.club},${s.index},${s.ballSpeed||''},${dir(s.launchDirection)},${s.launchAngle||''},${s.spinRate||''},${dir(s.spinAxis)},,,,${s.carry||''},${s.total||''},${dir(s.offline)},${s.landingAngle||''},,,, \n`;
+        });
         await saveSession(pdfName, csv);
         pdfShots += shots.length;
         imported++;
-      } catch (e) {
-        showToast('PDF read failed: ' + e.message);
-        continue;
+      } else {
+        const content = await file.text();
+        await saveSession(file.name, content);
+        imported++;
       }
-    } else {
-      const content = await file.text();
-      await saveSession(file.name, content);
-      imported++;
+    } catch (e) {
+      console.error('Import failed:', file.name, e);
+      failed++;
     }
   }
-  event.target.value = '';
-  const extra = pdfShots ? ` (${pdfShots} shots from PDF)` : '';
-  showToast(`Imported ${imported} file${imported > 1 ? 's' : ''}${extra}`);
+  let msg = `Imported ${imported} of ${total} file${total > 1 ? 's' : ''}`;
+  if (pdfShots) msg += ` (${pdfShots} shots from PDF)`;
+  if (failed) msg += ` · ${failed} failed`;
+  showToast(msg);
   await rebuildData();
 }
 
