@@ -908,58 +908,143 @@ async function deleteSession(filename) {
 }
 
 // ─── File Import ───
-async function extractPdfText(file) {
+// Parse FSX Pro Session Report PDF into shots
+async function parseFsxPdf(file) {
   await window.pdfjsReady;
   if (!window.pdfjsLib) throw new Error('PDF reader not loaded');
   const buf = await file.arrayBuffer();
   const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
-  let fullText = '';
+  const shots = [];
+  let sessionDate = null;
+  let currentClub = null;
+
   for (let i = 1; i <= pdf.numPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    const lines = [];
-    let lastY = null;
-    let currentLine = [];
-    // Group text items by Y position to reconstruct lines
+
+    // Group text items into rows by Y position
+    const rows = [];
+    let lastY = null, currentRow = [];
     for (const item of content.items) {
       const y = Math.round(item.transform[5]);
+      const x = Math.round(item.transform[4]);
+      const text = item.str.trim();
+      if (!text) continue;
       if (lastY !== null && Math.abs(y - lastY) > 3) {
-        lines.push(currentLine.join(','));
-        currentLine = [];
+        rows.push(currentRow);
+        currentRow = [];
       }
-      currentLine.push(item.str.trim());
+      currentRow.push({ text, x, y });
       lastY = y;
     }
-    if (currentLine.length) lines.push(currentLine.join(','));
-    fullText += lines.join('\n') + '\n';
+    if (currentRow.length) rows.push(currentRow);
+
+    for (const row of rows) {
+      const full = row.map(r => r.text).join(' ');
+
+      // Extract session date from page 1 (e.g., "March 30, 2026")
+      if (!sessionDate) {
+        const dm = full.match(/(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})/i);
+        if (dm) {
+          const months = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
+          const mm = String(months[dm[1].toLowerCase()]).padStart(2,'0');
+          const dd = dm[2].padStart(2,'0');
+          sessionDate = `${mm}-${dd}-${dm[3]}`;
+        }
+      }
+
+      // Detect club from "Dr - Details" or "7i - Details" headers
+      const clubMatch = full.match(/^(Dr|3w|5w|3h|4h|5h|2i|3i|4i|5i|6i|7i|8i|9i|PW|SW|GW|LW|UW)\s*-?\s*Details?/i);
+      if (clubMatch) {
+        currentClub = normalizeClub(clubMatch[1]);
+        continue;
+      }
+      // Also detect standalone club name on its own line (e.g., just "Dr" or "7i")
+      if (row.length === 1 && /^(Dr|3w|5w|3h|4h|5h|2i|3i|4i|5i|6i|7i|8i|9i|PW|SW|GW|LW|UW)$/i.test(row[0].text)) {
+        currentClub = normalizeClub(row[0].text);
+        continue;
+      }
+
+      if (!currentClub || !sessionDate) continue;
+
+      // Skip header rows, avg, stddev, unit rows
+      if (full.includes('BALL SPEED') || full.includes('mph') || full.includes('Avg.') || full.includes('StdDev.')) continue;
+      if (full.includes('SESSION REPORT') || full.includes('FORESIGHT') || full.includes('Details')) continue;
+
+      // Try to parse a shot row: first token is shot number, rest are values
+      const vals = row.map(r => r.text);
+      const shotNum = parseInt(vals[0]);
+      if (isNaN(shotNum) || shotNum < 1 || shotNum > 200) continue;
+
+      // Extract numbers from remaining values
+      const nums = vals.slice(1).map(v => {
+        const n = parseFloat(v.replace(/[+±]/g, ''));
+        return isNaN(n) ? null : n;
+      });
+      // Keep sign for direction values
+      const signed = vals.slice(1).map(v => {
+        const n = parseFloat(v);
+        return isNaN(n) ? null : n;
+      });
+
+      if (nums.length < 7) continue; // Need at least ballSpeed through carry
+
+      // Column order: BallSpeed, LaunchDir, LaunchAngle, SpinRate, SpinAxis, Curve, Carry, Total, [Offline, DescentAngle]
+      shots.push({
+        source: file.name, date: sessionDate, club: currentClub, index: shotNum,
+        ballSpeed: nums[0],
+        launchDirection: signed[1],
+        launchAngle: nums[2],
+        spinRate: nums[3] ? Math.round(nums[3]) : null,
+        spinAxis: signed[4],
+        carry: nums[6],
+        total: nums[7] || null,
+        offline: signed.length > 8 ? signed[8] : null,
+        landingAngle: nums.length > 9 ? nums[9] : null,
+        apex: null, backSpin: null, sideSpin: null, clubSpeed: null,
+        smashFactor: null, attackAngle: null, clubPath: null, faceAngle: null, dynamicLoft: null,
+      });
+    }
   }
-  return fullText;
+  return shots;
 }
 
 async function handleFileImport(event) {
   const files = event.target.files;
   if (!files.length) return;
-  let imported = 0;
+  let imported = 0, pdfShots = 0;
   for (const file of files) {
-    let content;
     const isPdf = file.name.toLowerCase().endsWith('.pdf');
     if (isPdf) {
       try {
         showToast('Reading PDF...');
-        content = await extractPdfText(file);
+        const shots = await parseFsxPdf(file);
+        if (!shots.length) { showToast('No shot data found in PDF'); continue; }
+        const date = shots[0].date || '01-01-2026';
+        // Build DrivingRange-format CSV (simplest format, well-tested parser)
+        let csv = `Dates,${date},Place,,Player,,\n`;
+        csv += `Club,Index,Ball Speed(mph),Launch Direction,Launch Angle,Spin Rate,Spin Axis,Back Spin,Side Spin,Apex(yd),Carry(yd),Total(yd),Offline(yd),Landing Angle,Club Path,Face Angle,Attack Angle,Dynamic Loft\n`;
+        shots.forEach(s => {
+          // DrivingRange uses L/R prefix: negative = L, positive = R
+          const dir = v => v == null ? '' : (v < 0 ? `L${Math.abs(v)}` : v > 0 ? `R${v}` : '0');
+          csv += `${s.club},${s.index},${s.ballSpeed||''},${dir(s.launchDirection)},${s.launchAngle||''},${s.spinRate||''},${dir(s.spinAxis)},,,,${s.carry||''},${s.total||''},${dir(s.offline)},${s.landingAngle||''},,,, \n`;
+        });
+        await saveSession(file.name.replace(/\.pdf$/i, '-pdf.csv'), csv);
+        pdfShots += shots.length;
+        imported++;
       } catch (e) {
         showToast('PDF read failed: ' + e.message);
         continue;
       }
     } else {
-      content = await file.text();
+      const content = await file.text();
+      await saveSession(file.name, content);
+      imported++;
     }
-    const saveName = isPdf ? file.name.replace(/\.pdf$/i, '.csv') : file.name;
-    await saveSession(saveName, content);
-    imported++;
   }
   event.target.value = '';
-  showToast(`Imported ${imported} file${imported > 1 ? 's' : ''}`);
+  const extra = pdfShots ? ` (${pdfShots} shots from PDF)` : '';
+  showToast(`Imported ${imported} file${imported > 1 ? 's' : ''}${extra}`);
   await rebuildData();
 }
 
