@@ -1024,7 +1024,7 @@ async function init() {
     // One-time migration v2: old 'shane' profile → 'legacy' (uses g730_shane DB)
     // New profiles use different IDs so they get clean DBs
     const profs = getProfiles();
-    if (!localStorage.getItem('g730-v2-migrated')) {
+    if (!localStorage.getItem('g730-v3-migrated')) {
       // Wipe all old profiles and start fresh
       const newProfiles = {};
       // Preserve old shane data under 'legacy' key — DB is g730_shane
@@ -1044,25 +1044,25 @@ async function init() {
         };
       }
       // New family profiles with unique IDs (different from any old DB names)
-      newProfiles['shane2'] = { username: 'shane2', golferName: 'Shane', createdAt: new Date().toISOString(), profile: { launchSim: 'Bushnell Launch Pro', balls: [], bag: [] } };
-      newProfiles['zach2'] = { username: 'zach2', golferName: 'Zach', createdAt: new Date().toISOString(), profile: { launchSim: '', balls: [], bag: [] } };
-      newProfiles['sam2'] = { username: 'sam2', golferName: 'Sam', createdAt: new Date().toISOString(), profile: { launchSim: '', balls: [], bag: [] } };
-      newProfiles['luke2'] = { username: 'luke2', golferName: 'Luke', createdAt: new Date().toISOString(), profile: { launchSim: '', balls: [], bag: [] } };
+      newProfiles['shane3'] = { username: 'shane3', golferName: 'Shane', createdAt: new Date().toISOString(), profile: { launchSim: 'Bushnell Launch Pro', balls: [], bag: [] } };
+      newProfiles['zach3'] = { username: 'zach3', golferName: 'Zach', createdAt: new Date().toISOString(), profile: { launchSim: '', balls: [], bag: [] } };
+      newProfiles['sam3'] = { username: 'sam3', golferName: 'Sam', createdAt: new Date().toISOString(), profile: { launchSim: '', balls: [], bag: [] } };
+      newProfiles['luke3'] = { username: 'luke3', golferName: 'Luke', createdAt: new Date().toISOString(), profile: { launchSim: '', balls: [], bag: [] } };
       saveProfiles(newProfiles);
-      setActiveUser('shane2');
-      activeUser = 'shane2';
-      localStorage.setItem('g730-v2-migrated', 'true');
+      setActiveUser('shane3');
+      activeUser = 'shane3';
+      localStorage.setItem('g730-v3-migrated', 'true');
     }
 
     // Ensure profiles exist
     const p = getProfiles();
     if (!Object.keys(p).length) {
-      createProfile('shane2', 'Shane');
-      createProfile('zach2', 'Zach');
-      createProfile('sam2', 'Sam');
-      createProfile('luke2', 'Luke');
-      setActiveUser('shane2');
-      activeUser = 'shane2';
+      createProfile('shane3', 'Shane');
+      createProfile('zach3', 'Zach');
+      createProfile('sam3', 'Sam');
+      createProfile('luke3', 'Luke');
+      setActiveUser('shane3');
+      activeUser = 'shane3';
     }
 
     // No active user or stale reference — pick the first profile
@@ -1075,12 +1075,9 @@ async function init() {
     renderProfileSwitchList();
     const stored = await getAllSessions();
     if (!stored.length) {
-      const bootstrapped = await bootstrapFromServer();
-      if (!bootstrapped) {
-        document.getElementById('loadingOverlay').classList.add('hidden');
-        document.getElementById('emptyState').style.display = '';
-        return;
-      }
+      document.getElementById('loadingOverlay').classList.add('hidden');
+      document.getElementById('emptyState').style.display = '';
+      return;
     }
     await rebuildData();
   } catch (err) {
