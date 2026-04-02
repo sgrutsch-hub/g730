@@ -920,95 +920,92 @@ async function parseFsxPdf(file) {
   let sessionDate = null;
   let currentClub = null;
 
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
+  for (let pg = 1; pg <= pdf.numPages; pg++) {
+    const page = await pdf.getPage(pg);
     const content = await page.getTextContent();
 
-    // Group text items into rows by Y position
-    const rows = [];
-    let lastY = null, currentRow = [];
-    for (const item of content.items) {
-      const y = Math.round(item.transform[5]);
-      const x = Math.round(item.transform[4]);
-      const text = item.str.trim();
-      if (!text) continue;
-      if (lastY !== null && Math.abs(y - lastY) > 3) {
-        rows.push(currentRow);
-        currentRow = [];
-      }
-      currentRow.push({ text, x, y });
-      lastY = y;
-    }
-    if (currentRow.length) rows.push(currentRow);
+    // Collect all non-empty text items with position
+    const items = content.items
+      .filter(item => item.str.trim())
+      .map(item => ({ text: item.str.trim(), x: Math.round(item.transform[4]), y: Math.round(item.transform[5]) }));
+
+    // Group into rows by Y position (use 8px threshold — PDF tables have ~20px row height)
+    const rowMap = {};
+    items.forEach(item => {
+      // Find existing Y bucket within 8px
+      let bucket = Object.keys(rowMap).find(y => Math.abs(y - item.y) <= 8);
+      if (!bucket) bucket = item.y;
+      if (!rowMap[bucket]) rowMap[bucket] = [];
+      rowMap[bucket].push(item);
+    });
+
+    // Sort rows top-to-bottom (highest Y first in PDF coords)
+    const rows = Object.entries(rowMap)
+      .sort((a, b) => b[0] - a[0])
+      .map(([, items]) => items.sort((a, b) => a.x - b.x));
 
     for (const row of rows) {
-      const full = row.map(r => r.text).join(' ');
+      const texts = row.map(r => r.text);
+      const full = texts.join(' ');
 
-      // Extract session date from page 1 (e.g., "March 30, 2026")
+      // Extract session date (e.g., "March 30, 2026")
       if (!sessionDate) {
         const dm = full.match(/(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2}),?\s+(\d{4})/i);
         if (dm) {
           const months = {january:1,february:2,march:3,april:4,may:5,june:6,july:7,august:8,september:9,october:10,november:11,december:12};
-          const mm = String(months[dm[1].toLowerCase()]).padStart(2,'0');
-          const dd = dm[2].padStart(2,'0');
-          sessionDate = `${mm}-${dd}-${dm[3]}`;
+          sessionDate = `${String(months[dm[1].toLowerCase()]).padStart(2,'0')}-${dm[2].padStart(2,'0')}-${dm[3]}`;
+          console.log('PDF: Session date:', sessionDate);
         }
       }
 
-      // Detect club from "Dr - Details" or "7i - Details" headers
-      const clubMatch = full.match(/^(Dr|3w|5w|3h|4h|5h|2i|3i|4i|5i|6i|7i|8i|9i|PW|SW|GW|LW|UW)\s*-?\s*Details?/i);
+      // Detect club from "Dr - Details" or standalone club name
+      const clubMatch = full.match(/^(Dr|3w|5w|3h|4h|5h|2i|3i|4i|5i|6i|7i|8i|9i|PW|SW|GW|LW|UW)\s*[-–]?\s*Details?/i);
       if (clubMatch) {
         currentClub = normalizeClub(clubMatch[1]);
         console.log('PDF: Found club section:', currentClub);
         continue;
       }
-      // Also detect standalone club name on its own line (e.g., just "Dr" or "7i")
-      if (row.length === 1 && /^(Dr|3w|5w|3h|4h|5h|2i|3i|4i|5i|6i|7i|8i|9i|PW|SW|GW|LW|UW)$/i.test(row[0].text)) {
-        currentClub = normalizeClub(row[0].text);
+      if (texts.length <= 2 && /^(Dr|3w|5w|3h|4h|5h|2i|3i|4i|5i|6i|7i|8i|9i|PW|SW|GW|LW|UW)$/i.test(texts[0])) {
+        currentClub = normalizeClub(texts[0]);
         continue;
       }
 
       if (!currentClub || !sessionDate) continue;
 
-      // Skip header rows, avg, stddev, unit rows
+      // Skip headers, avg, stddev, labels
       if (full.includes('BALL SPEED') || full.includes('mph') || full.includes('Avg.') || full.includes('StdDev.')) continue;
-      if (full.includes('SESSION REPORT') || full.includes('FORESIGHT') || full.includes('Details')) continue;
+      if (full.includes('SESSION REPORT') || full.includes('FORESIGHT') || full.includes('Details') || full.includes('missing')) continue;
 
-      // Try to parse a shot row: first token is shot number, rest are values
-      const vals = row.map(r => r.text);
-      const shotNum = parseInt(vals[0]);
+      // Parse shot row: first value should be shot number (1-200)
+      const shotNum = parseInt(texts[0]);
       if (isNaN(shotNum) || shotNum < 1 || shotNum > 200) continue;
 
-      // Extract numbers from remaining values
-      const nums = vals.slice(1).map(v => {
-        const n = parseFloat(v.replace(/[+±]/g, ''));
-        return isNaN(n) ? null : n;
-      });
-      // Keep sign for direction values
-      const signed = vals.slice(1).map(v => {
+      // Remaining values are the shot data — parse as signed floats
+      const vals = texts.slice(1).map(v => {
         const n = parseFloat(v);
         return isNaN(n) ? null : n;
-      });
+      }).filter(v => v !== null);
 
-      if (nums.length < 7) continue; // Need at least ballSpeed through carry
+      if (vals.length < 7) continue; // Need: ballSpeed, launchDir, launchAngle, spinRate, spinAxis, curve, carry
 
-      // Column order: BallSpeed, LaunchDir, LaunchAngle, SpinRate, SpinAxis, Curve, Carry, Total, [Offline, DescentAngle]
+      // Column order from FSX PDF: BallSpeed, LaunchDir, LaunchAngle, SpinRate, SpinAxis, Curve, Carry, Total, [Offline, DescentAngle]
       shots.push({
         source: file.name, date: sessionDate, club: currentClub, index: shotNum,
-        ballSpeed: nums[0],
-        launchDirection: signed[1],
-        launchAngle: nums[2],
-        spinRate: nums[3] ? Math.round(nums[3]) : null,
-        spinAxis: signed[4],
-        carry: nums[6],
-        total: nums[7] || null,
-        offline: signed.length > 8 ? signed[8] : null,
-        landingAngle: nums.length > 9 ? nums[9] : null,
+        ballSpeed: vals[0],
+        launchDirection: vals[1],
+        launchAngle: vals[2],
+        spinRate: vals[3] ? Math.round(vals[3]) : null,
+        spinAxis: vals[4],
+        carry: vals[6],
+        total: vals.length > 7 ? vals[7] : null,
+        offline: vals.length > 8 ? vals[8] : null,
+        landingAngle: vals.length > 9 ? vals[9] : null,
         apex: null, backSpin: null, sideSpin: null, clubSpeed: null,
         smashFactor: null, attackAngle: null, clubPath: null, faceAngle: null, dynamicLoft: null,
       });
     }
   }
+  console.log('PDF: Total shots parsed:', shots.length, 'clubs:', [...new Set(shots.map(s => s.club))].join(', '));
   return shots;
 }
 
