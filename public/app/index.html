@@ -627,7 +627,7 @@ async function parseFsxPdf(file) {
   const buf = await file.arrayBuffer();
   const pdf = await window.pdfjsLib.getDocument({ data: buf }).promise;
   const shots = [];
-  let sessionDate = null, currentClub = null;
+  let sessionDate = null, currentClub = null, isBallDataPage = false;
 
   for (let pg = 1; pg <= pdf.numPages; pg++) {
     const page = await pdf.getPage(pg);
@@ -645,6 +645,15 @@ async function parseFsxPdf(file) {
       rowMap[bucket].push(item);
     });
     const rows = Object.entries(rowMap).sort((a, b) => b[0] - a[0]).map(([, items]) => items.sort((a, b) => a.x - b.x));
+
+    // Check if this page is a ball data page or club data page
+    const pageText = items.map(i => i.text).join(' ');
+    if (pageText.includes('CLUB SPEED') || pageText.includes('CLUB PATH')) {
+      isBallDataPage = false; // Club data page — skip shot parsing
+    }
+    if (pageText.includes('BALL SPEED') && pageText.includes('CARRY')) {
+      isBallDataPage = true; // Ball data page — parse shots
+    }
 
     for (const row of rows) {
       const texts = row.map(r => r.text);
@@ -664,9 +673,10 @@ async function parseFsxPdf(file) {
         currentClub = normalizeClub(texts[0]); continue;
       }
 
-      if (!currentClub || !sessionDate) continue;
+      if (!currentClub || !sessionDate || !isBallDataPage) continue;
       if (full.includes('BALL SPEED') || full.includes('mph') || full.includes('Avg.') || full.includes('StdDev.')) continue;
       if (full.includes('SESSION REPORT') || full.includes('FORESIGHT') || full.includes('Details') || full.includes('missing')) continue;
+      if (full.includes('Summary') || full.includes('Table of Contents') || full.includes('Session Notes')) continue;
 
       const shotNum = parseInt(texts[0]);
       if (isNaN(shotNum) || shotNum < 1 || shotNum > 200) continue;
