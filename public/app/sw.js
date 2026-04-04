@@ -1,5 +1,5 @@
-const CACHE = 'swingdoctor-v37';
-const ASSETS = ['./', 'index.html', 'manifest.json', 'apple-touch-icon.png'];
+const CACHE = 'swingdoctor-v38';
+const ASSETS = ['./', 'index.html', 'api-client.js', 'manifest.json', 'apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
@@ -14,18 +14,13 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = e.request.url;
 
-  // Network-first for session data files — fetch fresh when possible, fall back to cache offline
-  if (url.includes('/sessions/') || url.includes('sessions.json')) {
-    e.respondWith(
-      caches.open(CACHE).then(c =>
-        fetch(e.request).then(r => { c.put(e.request, r.clone()); return r; }).catch(() => c.match(e.request))
-      )
-    );
+  // NEVER intercept API calls — let them go straight to the network
+  if (url.includes('fly.dev') || url.includes('api.swing.doctor') || url.includes('localhost:8000')) {
     return;
   }
 
-  // Network-first for app shell (HTML, manifest) — always get latest, fall back to cache offline
-  if (url.endsWith('/') || url.endsWith('.html') || url.endsWith('.json')) {
+  // Network-first for app shell (HTML, JS, manifest) — always get latest, fall back to cache offline
+  if (url.endsWith('/') || url.endsWith('.html') || url.endsWith('.js') || url.endsWith('.json')) {
     e.respondWith(
       caches.open(CACHE).then(c =>
         fetch(e.request).then(r => { c.put(e.request, r.clone()); return r; }).catch(() => c.match(e.request))
