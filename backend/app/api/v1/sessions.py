@@ -79,7 +79,8 @@ async def upload_csv(
         raise ValidationError("No shot data found in file")
 
     # Check session count limits for free tier
-    if user.subscription_tier == "free":
+    effective_tier = user.subscription_override or user.subscription_tier
+    if effective_tier == "free":
         existing_count = await db.scalar(
             select(func.count()).select_from(Session).where(Session.profile_id == profile_id)
         )

@@ -65,10 +65,12 @@ class BushnellSessionParser(BaseParser):
     def detect(self, content: str, filename: str = "") -> bool:
         """
         Detect by looking for the specific header pattern:
-        ",Date,Time,Ball Speed,Launch Angle,"
+        ",Date,Time,Ball Speed,Launch Angle," or
+        "Shot Number,Date,Time,Ball Speed,Launch Angle,"
         This is distinct from Shot Analysis which has a different column order.
         """
-        return ",Date,Time,Ball Speed,Launch Angle," in content
+        return (",Date,Time,Ball Speed,Launch Angle," in content
+                or "Shot Number,Date,Time,Ball Speed,Launch Angle," in content)
 
     def parse(self, content: str, filename: str = "") -> list[ParsedSession]:
         """Parse Session Export CSV into sessions (grouped by date)."""
@@ -92,8 +94,8 @@ class BushnellSessionParser(BaseParser):
                 header_found = False
                 continue
 
-            # Header line
-            if stripped.startswith(",Date,Time,"):
+            # Header line — both old (",Date,Time,...") and new ("Shot Number,Date,Time,...")
+            if stripped.startswith(",Date,Time,") or stripped.startswith("Shot Number,Date,Time,"):
                 header_found = True
                 continue
 
@@ -172,11 +174,25 @@ class BushnellSessionParser(BaseParser):
     @staticmethod
     def _parse_short_date(raw: str) -> date | None:
         """
-        Parse M/D/YY format to date object.
+        Parse date in M/D/YY or MM-DD-YYYY format.
 
-        Examples: "3/19/26" → date(2026, 3, 19)
-        Two-digit years: 00-50 → 2000s, 51-99 → 1900s
+        Examples:
+          "3/19/26" → date(2026, 3, 19)
+          "03-24-2026" → date(2026, 3, 24)
         """
+        # Try MM-DD-YYYY first
+        if "-" in raw:
+            parts = raw.split("-")
+            if len(parts) == 3:
+                try:
+                    month = int(parts[0])
+                    day = int(parts[1])
+                    year = int(parts[2])
+                    return date(year, month, day)
+                except (ValueError, IndexError):
+                    pass
+
+        # Then M/D/YY
         parts = raw.split("/")
         if len(parts) != 3:
             return None
