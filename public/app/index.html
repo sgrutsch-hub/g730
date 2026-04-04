@@ -741,6 +741,9 @@ function theoreticalTotal(carry, landingAngle, spinRate) {
 
 function mapShot(shot, session) {
   const date = isoToDisplay(session.session_date);
+  const c = shot.carry_yards != null ? Number(shot.carry_yards) : null;
+  const la = shot.landing_angle_deg != null ? Number(shot.landing_angle_deg) : null;
+  const sr = shot.spin_rate_rpm;
   return {
     id: shot.id,
     source: session.source_file,
@@ -750,15 +753,15 @@ function mapShot(shot, session) {
     ballSpeed: shot.ball_speed_mph != null ? Number(shot.ball_speed_mph) : null,
     launchAngle: shot.launch_angle_deg != null ? Number(shot.launch_angle_deg) : null,
     launchDirection: shot.launch_direction_deg != null ? Number(shot.launch_direction_deg) : null,
-    spinRate: shot.spin_rate_rpm,
+    spinRate: sr,
     spinAxis: shot.spin_axis_deg != null ? Number(shot.spin_axis_deg) : null,
     backSpin: shot.back_spin_rpm,
     sideSpin: shot.side_spin_rpm,
     apex: shot.apex_feet != null ? Number(shot.apex_feet) : null,
-    carry: shot.carry_yards != null ? Number(shot.carry_yards) : null,
-    total: null, // computed below
+    carry: c,
+    total: theoreticalTotal(c, la, sr),
     offline: shot.offline_yards != null ? Number(shot.offline_yards) : null,
-    landingAngle: shot.landing_angle_deg != null ? Number(shot.landing_angle_deg) : null,
+    landingAngle: la,
     clubPath: shot.club_path_deg != null ? Number(shot.club_path_deg) : null,
     faceAngle: shot.face_angle_deg != null ? Number(shot.face_angle_deg) : null,
     attackAngle: shot.attack_angle_deg != null ? Number(shot.attack_angle_deg) : null,
@@ -770,12 +773,6 @@ function mapShot(shot, session) {
     ballType: session.ball_type || 'tp5x',
     sessionId: session.id,
   };
-  // Compute theoretical total from carry + physics-based rollout
-  const c = shot.carry_yards != null ? Number(shot.carry_yards) : null;
-  const la = shot.landing_angle_deg != null ? Number(shot.landing_angle_deg) : null;
-  const sr = shot.spin_rate_rpm;
-  mapped.total = theoreticalTotal(c, la, sr);
-  return mapped;
 }
 
 function buildDataFromShots(allShots, sessionList) {
