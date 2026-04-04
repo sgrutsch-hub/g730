@@ -71,35 +71,47 @@ async def process_session_shots(
 
 def _apply_trim(shots: list[Shot], trim_pct: float) -> None:
     """
-    Mark the bottom N% of shots (by carry distance) as filtered out.
+    Hybrid trim: mark shots as outliers if they fall in the bottom N%
+    by ball speed OR by carry distance.
 
-    Shots with valid carry are sorted; those below the cutoff percentile
-    get is_filtered = False. Shots with no carry data are also marked False.
+    This catches both thin/mishit shots (low ball speed, low carry) AND
+    ballooned shots (decent speed but high spin → short carry) that a
+    single-metric trim would miss.
+
+    Shots with no carry or no ball speed data are marked as filtered out.
     """
-    # Separate shots with valid carry from those without
-    with_carry = [
+    # Need both carry and ball speed for hybrid trim
+    valid = [
         s for s in shots
         if s.carry_yards is not None and s.carry_yards > 0
+        and s.ball_speed_mph is not None and s.ball_speed_mph > 0
     ]
 
-    if not with_carry:
+    if not valid:
         for s in shots:
             s.is_filtered = False
         return
 
-    # Sort by carry ascending
-    with_carry.sort(key=lambda s: s.carry_yards)  # type: ignore[arg-type]
+    # Find cutoff for carry (bottom N%)
+    by_carry = sorted(valid, key=lambda s: s.carry_yards)  # type: ignore[arg-type]
+    carry_cutoff_idx = int(len(by_carry) * trim_pct)
+    carry_cutoff = by_carry[carry_cutoff_idx].carry_yards if carry_cutoff_idx < len(by_carry) else Decimal("0")
 
-    # Find the cutoff value at the trim percentile
-    cutoff_idx = int(len(with_carry) * trim_pct)
-    cutoff_value = with_carry[cutoff_idx].carry_yards if cutoff_idx < len(with_carry) else Decimal("0")
+    # Find cutoff for ball speed (bottom N%)
+    by_speed = sorted(valid, key=lambda s: s.ball_speed_mph)  # type: ignore[arg-type]
+    speed_cutoff_idx = int(len(by_speed) * trim_pct)
+    speed_cutoff = by_speed[speed_cutoff_idx].ball_speed_mph if speed_cutoff_idx < len(by_speed) else Decimal("0")
 
-    # Mark each shot
+    # Mark each shot — must pass BOTH thresholds to be included
     for shot in shots:
-        if shot.carry_yards is None or shot.carry_yards <= 0:
+        if (shot.carry_yards is None or shot.carry_yards <= 0
+                or shot.ball_speed_mph is None or shot.ball_speed_mph <= 0):
             shot.is_filtered = False
         else:
-            shot.is_filtered = shot.carry_yards >= cutoff_value
+            shot.is_filtered = (
+                shot.carry_yards >= carry_cutoff
+                and shot.ball_speed_mph >= speed_cutoff
+            )
 
 
 def _theoretical_carry(
