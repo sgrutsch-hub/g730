@@ -70,6 +70,10 @@ async def upload_csv(
         except UnicodeDecodeError as e:
             raise ValidationError("Unable to read file — unsupported encoding") from e
 
+    # Strip BOM if present
+    if text.startswith("\ufeff"):
+        text = text[1:]
+
     filename = file.filename or "unknown.csv"
 
     # Auto-detect format and parse

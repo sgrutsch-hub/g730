@@ -101,12 +101,24 @@ class BushnellShotAnalysisParser(BaseParser):
     """Parser for Bushnell Launch Pro Shot Analysis CSV exports."""
 
     def detect(self, content: str, filename: str = "") -> bool:
-        """Detect by looking for 'Shot Analysis' in the first line."""
+        """
+        Detect Shot Analysis format.
+
+        Matches either:
+        - 'Shot Analysis' in the first line, OR
+        - Header row with ',Date,Time,Carry,Total,Peak Height,' (unique to this format)
+        """
         first_line = content.split("\n", 1)[0].strip()
-        return "Shot Analysis" in first_line
+        if "Shot Analysis" in first_line:
+            return True
+        # Fallback: check for the unique header pattern (Carry at col 3)
+        return ",Date,Time,Carry,Total,Peak Height," in content
 
     def parse(self, content: str, filename: str = "") -> list[ParsedSession]:
         """Parse Shot Analysis CSV into sessions (grouped by date)."""
+        # Strip BOM if present
+        if content.startswith("\ufeff"):
+            content = content[1:]
         lines = content.split("\n")
         shots_by_date: dict[str, list[ParsedShot]] = {}
         current_club: str | None = None
