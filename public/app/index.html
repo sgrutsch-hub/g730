@@ -883,11 +883,10 @@ async function rebuildData() {
 async function handleFileImport(event) {
   const fileList = Array.from(event.target.files);
   if (!fileList.length) return;
-  event.target.value = '';
   const profileId = getActiveProfileId();
   if (!profileId) { showToast('Select a profile first'); return; }
 
-  let imported = 0;
+  let imported = 0, errors = [];
   for (let fi = 0; fi < fileList.length; fi++) {
     const file = fileList[fi];
     showToast(`Uploading ${fi + 1} of ${fileList.length}: ${file.name}`);
@@ -896,10 +895,16 @@ async function handleFileImport(event) {
       imported++;
     } catch (e) {
       console.error('Upload failed:', file.name, e);
-      showToast(`Failed: ${file.name} — ${e.message}`);
+      errors.push(file.name + ': ' + (e.message || JSON.stringify(e)));
     }
   }
-  showToast(`Uploaded ${imported} of ${fileList.length} file${fileList.length > 1 ? 's' : ''}`);
+  event.target.value = '';
+  if (errors.length) {
+    showToast(`${imported} uploaded, ${errors.length} failed`);
+    console.error('Upload errors:', errors);
+  } else {
+    showToast(`Uploaded ${imported} file${imported !== 1 ? 's' : ''}`);
+  }
   await rebuildData();
 }
 
