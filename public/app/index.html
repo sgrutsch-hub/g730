@@ -390,11 +390,6 @@
         <div id="bagList"></div>
         <button class="add-btn" onclick="addBagClub()">+ Add Club</button>
       </div>
-      <div class="card">
-        <div class="card-title">Golf Balls</div>
-        <div id="ballList"></div>
-        <button class="add-btn" onclick="addBallType()">+ Add Ball</button>
-      </div>
     </div>
   </div>
 
@@ -423,7 +418,6 @@ let _activeProfileId = localStorage.getItem('sd_active_profile') || null;
 let _sessionListCache = []; // raw session list from API
 let selectedClub = null;
 let dateFilterMode = 'all';
-let ballTypeFilter = 'all';
 let authMode = 'login'; // 'login' or 'register'
 const charts = {};
 
@@ -618,15 +612,6 @@ function updateProfileTab() {
     </div>`
   ).join('') : '<div style="font-size:12px;color:var(--text3);padding:4px 0">No clubs added yet</div>';
 
-  // Balls from profile settings
-  const balls = p.settings?.balls || [];
-  document.getElementById('ballList').innerHTML = balls.length ? balls.map((b, i) =>
-    `<div class="bag-row">
-      <span class="bag-club" style="min-width:auto">${b}</span>
-      <span style="flex:1"></span>
-      <button class="bag-del" onclick="removeProfileBall(${i})" title="Remove">&times;</button>
-    </div>`
-  ).join('') : '<div style="font-size:12px;color:var(--text3);padding:4px 0">No balls added yet</div>';
 }
 
 async function saveProfileField(field, value) {
@@ -682,26 +667,6 @@ async function removeBagClub(idx) {
   }
 }
 
-async function addBallType() {
-  const ball = prompt('Ball type (e.g. TaylorMade TP5x):');
-  if (!ball || !ball.trim()) return;
-  const p = getActiveProfile();
-  if (!p) return;
-  if (!p.settings) p.settings = {};
-  if (!p.settings.balls) p.settings.balls = [];
-  p.settings.balls.push(ball.trim());
-  await _saveProfileSettings();
-  updateProfileTab();
-}
-
-async function removeProfileBall(idx) {
-  const p = getActiveProfile();
-  if (p?.settings?.balls) {
-    p.settings.balls.splice(idx, 1);
-    await _saveProfileSettings();
-    updateProfileTab();
-  }
-}
 
 // ─── Data Loading (API-based) ───
 // Physics-based total distance calculation.
@@ -882,7 +847,6 @@ async function rebuildData() {
     }
     buildClubSelector();
     buildDateFilter();
-    buildBallTypeFilter();
     updateDashboard();
   } catch (e) {
     console.error('rebuildData failed:', e);
@@ -1005,10 +969,6 @@ function clearOldLocalStorage() {
 }
 
 // ─── Filtering ───
-function applyBallTypeFilter(items) {
-  if (ballTypeFilter === 'all') return items;
-  return items.filter(s => s.ballType === ballTypeFilter);
-}
 function parseDateStr(d) {
   if (!d) return null;
   const p = d.split('-');
@@ -1036,11 +996,11 @@ function applyDateFilter(items) {
 }
 function getFilteredShots() {
   if (!DATA) return [];
-  return applyBallTypeFilter(applyDateFilter(DATA.shots));
+  return applyDateFilter(DATA.shots);
 }
 function getFilteredSessions() {
   if (!DATA) return [];
-  return applyBallTypeFilter(applyDateFilter(DATA.sessions));
+  return applyDateFilter(DATA.sessions);
 }
 
 function buildDateFilter() {
@@ -1059,17 +1019,6 @@ function buildDateFilter() {
   select.value = dateFilterMode;
 }
 function onDateFilterChange() { dateFilterMode = document.getElementById('dateFilter').value; updateDashboard(); }
-function onBallTypeFilterChange() { ballTypeFilter = document.getElementById('ballTypeFilter').value; updateDashboard(); }
-
-function buildBallTypeFilter() {
-  const select = document.getElementById('ballTypeFilter');
-  if (!select) return;
-  const types = [...new Set(DATA.shots.map(s => s.ballType))].sort();
-  let html = '<option value="all">All Balls</option>';
-  types.forEach(t => { html += `<option value="${t}">${t}</option>`; });
-  select.innerHTML = html;
-  select.value = ballTypeFilter;
-}
 
 function buildClubSelector() {
   const clubs = [...new Set(DATA.clubSummaries.map(c => c.club))];
@@ -1091,8 +1040,7 @@ function updateDashboard() {
   const fs = getFilteredShots(), fss = getFilteredSessions();
   const active = fs.filter(s => s.filtered);
   const label = dateFilterMode === 'all' ? 'all time' : dateFilterMode.startsWith('month:') ? dateFilterMode.split(':')[1] : dateFilterMode.split(':')[1];
-  const ballLabel = ballTypeFilter !== 'all' ? ` \u00b7 ${ballTypeFilter}` : '';
-  document.getElementById('subtitle').textContent = `${active.length} shots \u00b7 ${fss.length} sessions \u00b7 ${label}${ballLabel} \u00b7 ${DATA.fileCount} files`;
+  document.getElementById('subtitle').textContent = `${active.length} shots \u00b7 ${fss.length} sessions \u00b7 ${label} \u00b7 ${DATA.fileCount} files`;
   updateKPIs(fs); updateTrendChart(fss); updateDistChart(fs); updateYardageChart(fs);
   updateYardageTable(fs); updateScatterChart(fs); updateSessionTable(fss); updateProgressTab(); updateManageTab(); updateProfileTab();
 }
@@ -1455,8 +1403,6 @@ function updateManageTab() {
     return;
   }
 
-  const defaultTypes = ['tp5x', 'tp5', 'various', 'prov1', 'other'];
-
   // Group by date for display
   const byDate = {};
   _sessionListCache.forEach(s => {
@@ -1471,30 +1417,15 @@ function updateManageTab() {
   for (const d of allDates) {
     const sessions = byDate[d];
     for (const s of sessions) {
-      const bt = s.ball_type || 'tp5x';
       html += `<div class="manage-row" style="align-items:center">
         <div class="manage-file">${d} &middot; ${s.source_file}</div>
         <div class="manage-meta">${s.shot_count} shots</div>
-        <select class="filter-select" style="font-size:11px;padding:3px 6px" onchange="updateSessionBallType('${s.id}', this.value)">
-          ${defaultTypes.map(t => `<option value="${t}" ${t === bt ? 'selected' : ''}>${t}</option>`).join('')}
-        </select>
         <button class="manage-del" onclick="removeSession('${s.id}')">Remove</button>
       </div>`;
     }
   }
 
   el.innerHTML = html || '<div style="color:var(--text3);font-size:12px;padding:8px">No sessions imported yet.</div>';
-}
-
-async function updateSessionBallType(sessionId, ballType) {
-  try {
-    await SwingDoctorAPI.updateSession(sessionId, { ball_type: ballType });
-    // Update cache
-    const s = _sessionListCache.find(s => s.id === sessionId);
-    if (s) s.ball_type = ballType;
-    showToast(`Ball type updated`);
-    await rebuildData();
-  } catch (e) { showToast('Update failed: ' + e.message); }
 }
 
 async function removeSession(sessionId) {
