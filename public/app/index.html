@@ -705,36 +705,30 @@ async function removeProfileBall(idx) {
 
 // ─── Data Loading (API-based) ───
 // Theoretical rollout based on landing angle, spin, and carry.
-// Steeper landing + higher spin = less roll. Lower landing + lower spin = more roll.
+// Calibrated for Foresight GC3 sim-reported landing angles which run
+// steeper than real-world (driver ~50° on sim vs ~35° real).
 function theoreticalTotal(carry, landingAngle, spinRate) {
   if (!carry || carry <= 0) return null;
 
-  // Base rollout percentage from landing angle
-  // ~50° landing = ~3% roll (wedges), ~35° = ~15% roll (driver)
+  // Rollout percentage from landing angle (calibrated for Foresight sim data)
   let rollPct;
   if (landingAngle == null || landingAngle <= 0) {
-    rollPct = 0.08; // default 8% if no data
-  } else if (landingAngle >= 55) {
-    rollPct = 0.01;
-  } else if (landingAngle >= 48) {
-    rollPct = 0.03 + (55 - landingAngle) * 0.005;
-  } else if (landingAngle >= 40) {
-    rollPct = 0.07 + (48 - landingAngle) * 0.01;
-  } else if (landingAngle >= 30) {
-    rollPct = 0.15 + (40 - landingAngle) * 0.015;
+    rollPct = 0.10;
   } else {
-    rollPct = 0.30 + (30 - landingAngle) * 0.02;
+    // Sim landing angles: driver ~50°, wedges ~52-55°
+    // 35° → 30%, 42° → 20%, 50° → 12%, 55° → 5%
+    rollPct = Math.max(0.03, 0.55 - landingAngle * 0.0093);
   }
 
-  // Spin adjustment: high spin reduces roll, low spin increases it
-  // Baseline ~5000 rpm = neutral
+  // Spin adjustment: higher spin = less roll
+  // Scaled so it nudges but doesn't dominate
   if (spinRate != null && spinRate > 0) {
-    const spinFactor = (5000 - spinRate) / 50000; // +/- ~10% adjustment
+    const spinFactor = (4500 - spinRate) / 80000;
     rollPct += spinFactor;
   }
 
-  // Clamp between 0% and 40%
-  rollPct = Math.max(0, Math.min(0.40, rollPct));
+  // Clamp between 2% and 40%
+  rollPct = Math.max(0.02, Math.min(0.40, rollPct));
 
   return carry * (1 + rollPct);
 }
