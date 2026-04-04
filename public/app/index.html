@@ -216,6 +216,33 @@
   .add-btn { font-size: 12px; color: var(--accent); background: none; border: 1px dashed var(--border);
     border-radius: 8px; padding: 6px 12px; cursor: pointer; width: 100%; margin-top: 4px; }
   .add-btn:hover { border-color: var(--accent); background: var(--bg3); }
+
+  /* Auth screen */
+  .auth-screen { display: none; max-width: 360px; margin: 0 auto; padding: 80px 20px 40px; text-align: center; }
+  .auth-screen.visible { display: block; }
+  .auth-title { font-size: 24px; font-weight: 700; margin-bottom: 8px; }
+  .auth-sub { font-size: 13px; color: var(--text3); margin-bottom: 24px; }
+  .auth-form { display: flex; flex-direction: column; gap: 12px; }
+  .auth-input { padding: 12px 14px; font-size: 14px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text); font-family: inherit; width: 100%; }
+  .auth-input:focus { outline: none; border-color: var(--accent); }
+  .auth-btn { padding: 12px; font-size: 14px; font-weight: 700; border-radius: 10px; border: none;
+    background: var(--green2); color: #fff; cursor: pointer; width: 100%; }
+  .auth-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .auth-toggle { font-size: 13px; color: var(--text3); margin-top: 8px; }
+  .auth-toggle a { color: var(--accent); cursor: pointer; text-decoration: none; }
+  .auth-error { font-size: 12px; color: var(--red); min-height: 18px; }
+
+  /* Migration banner */
+  .migration-banner { background: var(--bg2); border: 1px solid var(--gold); border-radius: 12px;
+    padding: 16px; margin-bottom: 12px; display: none; }
+  .migration-title { font-size: 14px; font-weight: 600; color: var(--gold); margin-bottom: 4px; }
+  .migration-sub { font-size: 12px; color: var(--text2); margin-bottom: 12px; line-height: 1.5; }
+  .migration-btns { display: flex; gap: 8px; }
+  .migration-btn { padding: 8px 16px; font-size: 12px; font-weight: 600; border-radius: 8px;
+    border: none; cursor: pointer; }
+  .migration-btn.primary { background: var(--gold); color: #000; }
+  .migration-btn.secondary { background: var(--bg3); color: var(--text2); border: 1px solid var(--border); }
 </style>
 </head>
 <body>
@@ -225,7 +252,25 @@
 <div class="toast" id="toast"></div>
 <input type="file" id="fileInput" accept=".csv,.CSV" multiple style="display:none" onchange="handleFileImport(event)">
 
-<div class="container">
+<div class="auth-screen" id="authScreen">
+  <div class="auth-title">Swing Doctor</div>
+  <div class="auth-sub">Sign in to sync your data across devices</div>
+  <div class="auth-form">
+    <div id="authNameField" style="display:none">
+      <input class="auth-input" id="authName" type="text" placeholder="Display name" autocomplete="name">
+    </div>
+    <input class="auth-input" id="authEmail" type="email" placeholder="Email" autocomplete="email">
+    <input class="auth-input" id="authPassword" type="password" placeholder="Password" autocomplete="current-password">
+    <div class="auth-error" id="authError"></div>
+    <button class="auth-btn" id="authBtn" onclick="handleAuth()">Sign In</button>
+    <div class="auth-toggle">
+      <span id="authToggleText">Don't have an account?</span>
+      <a id="authToggleLink" onclick="toggleAuthMode()">Sign Up</a>
+    </div>
+  </div>
+</div>
+
+<div class="container" id="appContainer" style="display:none">
   <div class="header">
     <h1>Swing Doctor</h1>
     <div class="header-btns" style="position:relative">
@@ -235,6 +280,8 @@
         <button class="profile-menu-item" onclick="switchTab('profile');closeProfileMenu()">My Profile</button>
         <div id="profileSwitchList"></div>
         <button class="profile-menu-item" onclick="addNewProfile()">+ Add Profile</button>
+        <div style="border-top:1px solid var(--border);margin:4px 0"></div>
+        <button class="profile-menu-item danger" onclick="handleLogout()">Sign Out</button>
       </div>
       <button class="hdr-btn icon-only" onclick="toggleTheme()" title="Toggle light/dark mode" id="themeToggle">
         <svg id="themeIcon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
@@ -245,6 +292,14 @@
       <button class="hdr-btn icon-only import-btn" onclick="document.getElementById('fileInput').click()" title="Import CSV files">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
       </button>
+    </div>
+  </div>
+  <div class="migration-banner" id="migrationBanner">
+    <div class="migration-title">Local Data Found</div>
+    <div class="migration-sub">We found session data on this device. Upload it to the cloud so it syncs across all your devices?</div>
+    <div class="migration-btns">
+      <button class="migration-btn primary" onclick="runMigration()">Upload to Cloud</button>
+      <button class="migration-btn secondary" onclick="dismissMigration()">Skip</button>
     </div>
   </div>
   <div class="subtitle" id="subtitle"></div>
@@ -305,9 +360,9 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Import Files
           </button>
-          <button class="hdr-btn" onclick="syncFromServer()" style="flex:1;justify-content:center">
+          <button class="hdr-btn" onclick="rebuildData()" style="flex:1;justify-content:center">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-            Sync Server
+            Refresh
           </button>
         </div>
       </div>
@@ -348,201 +403,50 @@
     <div class="empty-state-title">Welcome to Swing Doctor</div>
     <div class="empty-state-sub">Import your Bushnell Launch Pro CSV files<br>or sync from your Mac server.</div>
     <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
-      <button class="import-big" onclick="syncFromServer()">Sync from Server</button>
-      <button class="import-big" style="background:var(--bg3);color:var(--accent);border:1px solid var(--accent)" onclick="document.getElementById('fileInput').click()">Import CSVs</button>
+      <button class="import-big" onclick="document.getElementById('fileInput').click()">Import CSVs</button>
     </div>
   </div>
 
   <div class="footer">Swing Doctor &middot; Bushnell Launch Pro</div>
 </div>
 
+<script src="api-client.js"></script>
 <script>
 // ═══════════════════════════════════════════════
-// Swing Doctor — Fully client-side golf sim dashboard
-// All data stored in IndexedDB on the device
+// Swing Doctor — API-connected golf sim dashboard
 // ═══════════════════════════════════════════════
 
-const ELEVATION = 900;
-const DB_VERSION = 1;
-const STORE = 'sessions'; // stores {filename, date, content, importedAt}
+// ─── State ───
+let DATA = null;
+let _profiles = [];
+let _activeProfileId = localStorage.getItem('sd_active_profile') || null;
+let _sessionListCache = []; // raw session list from API
+let selectedClub = null;
+let dateFilterMode = 'all';
+let ballTypeFilter = 'all';
+let authMode = 'login'; // 'login' or 'register'
+const charts = {};
 
-// ─── Profile Management ───
-function getProfiles() { return JSON.parse(localStorage.getItem('g730-profiles') || '{}'); }
-function saveProfiles(p) { localStorage.setItem('g730-profiles', JSON.stringify(p)); }
-function getActiveUser() { return localStorage.getItem('g730-active-user') || ''; }
-function setActiveUser(u) { localStorage.setItem('g730-active-user', u); }
-function getDBName() { const u = getActiveUser(); return u ? `g730_${u}` : 'g730'; }
+const FULL_BAG = ['Driver','3 Wood','3 Hybrid','5 Iron','6 Iron','7 Iron','8 Iron','9 Iron','PW','UW','SW'];
+const BAG_ORDER = Object.fromEntries(FULL_BAG.map((c,i) => [c, i]));
+const TAB_LIST = ['overview','progress','yardage','dispersion','sessions','manage','profile'];
 
-// Namespaced localStorage helpers (per-profile keys)
-function lsKey(base) { const u = getActiveUser(); return u ? `g730-${u}-${base}` : `g730-${base}`; }
-function lsGet(base, fallback) { return localStorage.getItem(lsKey(base)) || fallback || '{}'; }
-function lsSet(base, value) { localStorage.setItem(lsKey(base), value); }
+// ─── Utilities ───
+function avg(a) { return a.length ? a.reduce((s,v) => s+v, 0) / a.length : 0; }
+function std(a) { if (a.length < 2) return 0; const m = avg(a); return Math.sqrt(a.reduce((s,v) => s + (v-m)**2, 0) / (a.length-1)); }
+function median(a) { if (!a.length) return 0; const s = [...a].sort((x,y) => x-y); const m = Math.floor(s.length/2); return s.length%2 ? s[m] : (s[m-1]+s[m])/2; }
 
-function createProfile(id, golferName) {
-  const profiles = getProfiles();
-  if (profiles[id]) return profiles[id];
-  profiles[id] = {
-    username: id, golferName,
-    createdAt: new Date().toISOString(),
-    profile: { launchSim: '', balls: ['tp5x'], bag: [] }
-  };
-  saveProfiles(profiles);
-  return profiles[id];
+function isoToDisplay(d) {
+  // "2026-03-19" → "03-19-2026"
+  if (!d) return '';
+  const s = String(d);
+  const p = s.split('-');
+  if (p.length !== 3 || p[0].length === 2) return s; // already MM-DD-YYYY
+  return `${p[1]}-${p[2]}-${p[0]}`;
 }
 
-function addNewProfile() {
-  closeProfileMenu();
-  const name = prompt('Golfer name:');
-  if (!name || !name.trim()) return;
-  const id = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
-  if (getProfiles()[id]) { showToast('Profile already exists'); return; }
-  createProfile(id, name.trim());
-  switchToProfile(id);
-}
+function showToast(msg) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2500); }
 
-async function switchToProfile(id) {
-  closeProfileMenu();
-  setActiveUser(id);
-  DATA = null;
-  updateProfileUI();
-  renderProfileSwitchList();
-  await rebuildData();
-}
-
-function renderProfileSwitchList() {
-  const profiles = getProfiles();
-  const active = getActiveUser();
-  const others = Object.keys(profiles).filter(u => u !== active);
-  const el = document.getElementById('profileSwitchList');
-  if (!others.length) { el.innerHTML = ''; return; }
-  el.innerHTML = others.map(u => {
-    const p = profiles[u];
-    return `<button class="profile-menu-item" onclick="switchToProfile('${u}')" style="color:var(--text2)">
-      ↳ ${p.golferName || u}
-    </button>`;
-  }).join('');
-}
-
-function toggleProfileMenu() {
-  document.getElementById('profileMenu').classList.toggle('hidden');
-}
-function closeProfileMenu() {
-  document.getElementById('profileMenu').classList.add('hidden');
-}
-// Close profile menu when clicking elsewhere
-document.addEventListener('click', e => {
-  if (!e.target.closest('#profileAvatar') && !e.target.closest('#profileMenu')) closeProfileMenu();
-});
-
-function updateProfileUI() {
-  const u = getActiveUser();
-  const profiles = getProfiles();
-  const p = profiles[u];
-  if (!p) return;
-  const initials = (p.golferName || u).split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  document.getElementById('profileAvatar').textContent = initials;
-  document.getElementById('profileMenuName').textContent = p.golferName || u;
-}
-
-// ─── Profile Tab ───
-function updateProfileTab() {
-  const u = getActiveUser();
-  const profiles = getProfiles();
-  const p = profiles[u];
-  if (!p) return;
-
-  document.getElementById('profUsername').value = u;
-  document.getElementById('profGolferName').value = p.golferName || '';
-  document.getElementById('profLaunchSim').value = p.profile?.launchSim || '';
-
-  // Bag
-  const bag = p.profile?.bag || [];
-  document.getElementById('bagList').innerHTML = bag.length ? bag.map((b, i) =>
-    `<div class="bag-row">
-      <span class="bag-club">${b.club}</span>
-      <input class="bag-brand" value="${b.brand || ''}" placeholder="Brand / Model" onchange="updateBagBrand(${i}, this.value)">
-      <button class="bag-del" onclick="removeBagClub(${i})" title="Remove">&times;</button>
-    </div>`
-  ).join('') : '<div style="font-size:12px;color:var(--text3);padding:4px 0">No clubs added yet</div>';
-
-  // Balls
-  const balls = p.profile?.balls || [];
-  document.getElementById('ballList').innerHTML = balls.length ? balls.map((b, i) =>
-    `<div class="bag-row">
-      <span class="bag-club" style="min-width:auto">${b}</span>
-      <span style="flex:1"></span>
-      <button class="bag-del" onclick="removeProfileBall(${i})" title="Remove">&times;</button>
-    </div>`
-  ).join('') : '<div style="font-size:12px;color:var(--text3);padding:4px 0">No balls added yet</div>';
-}
-
-function saveProfileField(field, value) {
-  const u = getActiveUser();
-  const profiles = getProfiles();
-  if (!profiles[u]) return;
-  if (field === 'golferName') {
-    profiles[u].golferName = value;
-  } else {
-    if (!profiles[u].profile) profiles[u].profile = {};
-    profiles[u].profile[field] = value;
-  }
-  saveProfiles(profiles);
-  updateProfileUI();
-}
-
-function addBagClub() {
-  const club = prompt('Club name (e.g. Driver, 7 Iron, PW):');
-  if (!club || !club.trim()) return;
-  const brand = prompt('Brand / Model (optional):') || '';
-  const u = getActiveUser();
-  const profiles = getProfiles();
-  if (!profiles[u].profile) profiles[u].profile = {};
-  if (!profiles[u].profile.bag) profiles[u].profile.bag = [];
-  profiles[u].profile.bag.push({ club: club.trim(), brand: brand.trim() });
-  saveProfiles(profiles);
-  updateProfileTab();
-}
-
-function updateBagBrand(idx, value) {
-  const u = getActiveUser();
-  const profiles = getProfiles();
-  if (profiles[u]?.profile?.bag?.[idx]) {
-    profiles[u].profile.bag[idx].brand = value;
-    saveProfiles(profiles);
-  }
-}
-
-function removeBagClub(idx) {
-  const u = getActiveUser();
-  const profiles = getProfiles();
-  if (profiles[u]?.profile?.bag) {
-    profiles[u].profile.bag.splice(idx, 1);
-    saveProfiles(profiles);
-    updateProfileTab();
-  }
-}
-
-function addBallType() {
-  const ball = prompt('Ball type (e.g. TaylorMade TP5x):');
-  if (!ball || !ball.trim()) return;
-  const u = getActiveUser();
-  const profiles = getProfiles();
-  if (!profiles[u].profile) profiles[u].profile = {};
-  if (!profiles[u].profile.balls) profiles[u].profile.balls = [];
-  profiles[u].profile.balls.push(ball.trim());
-  saveProfiles(profiles);
-  updateProfileTab();
-}
-
-function removeProfileBall(idx) {
-  const u = getActiveUser();
-  const profiles = getProfiles();
-  if (profiles[u]?.profile?.balls) {
-    profiles[u].profile.balls.splice(idx, 1);
-    saveProfiles(profiles);
-    updateProfileTab();
-  }
-}
 function cv(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 Object.defineProperties(window, {
   GREEN:  { get() { return cv('--green'); } },
@@ -559,314 +463,289 @@ Object.defineProperties(window, {
   TEXT3:  { get() { return cv('--text3'); } },
   BORDER: { get() { return cv('--border'); } },
 });
-const TAB_LIST = ['overview','progress','yardage','dispersion','sessions','manage','profile'];
 
-let DATA = null;
-let selectedClub = null;
-let dateFilterMode = 'all';
-let ballTypeFilter = 'all'; // 'all', 'tp5x', 'various', etc.
-const charts = {};
-
-// Ball type defaults by date — editable per session
-// Key: date string, Value: ball type string
-const BALL_TYPE_DEFAULTS = {
-  '03-18-2026': 'various',
-};
-const DEFAULT_BALL_TYPE = 'tp5x';
-
-// ─── IndexedDB ───
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(getDBName(), DB_VERSION);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE)) {
-        db.createObjectStore(STORE, { keyPath: 'filename' });
-      }
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+// ─── Auth ───
+function showAuthScreen() {
+  document.getElementById('authScreen').classList.add('visible');
+  document.getElementById('appContainer').style.display = 'none';
+  document.getElementById('loadingOverlay').classList.add('hidden');
 }
 
-async function saveSession(filename, content) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).put({ filename, content, importedAt: new Date().toISOString() });
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
+function hideAuthScreen() {
+  document.getElementById('authScreen').classList.remove('visible');
+  document.getElementById('appContainer').style.display = '';
 }
 
-async function getAllSessions() {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readonly');
-    const req = tx.objectStore(STORE).getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
+function toggleAuthMode() {
+  authMode = authMode === 'login' ? 'register' : 'login';
+  document.getElementById('authBtn').textContent = authMode === 'login' ? 'Sign In' : 'Create Account';
+  document.getElementById('authToggleText').textContent = authMode === 'login' ? "Don't have an account?" : 'Already have an account?';
+  document.getElementById('authToggleLink').textContent = authMode === 'login' ? 'Sign Up' : 'Sign In';
+  document.getElementById('authNameField').style.display = authMode === 'register' ? '' : 'none';
+  document.getElementById('authError').textContent = '';
 }
 
-async function deleteSession(filename) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, 'readwrite');
-    tx.objectStore(STORE).delete(filename);
-    tx.oncomplete = () => resolve();
-    tx.onerror = () => reject(tx.error);
-  });
-}
+async function handleAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl = document.getElementById('authError');
+  const btn = document.getElementById('authBtn');
 
-// ─── File Import (CSV only) ───
-async function handleFileImport(event) {
-  const fileList = Array.from(event.target.files);
-  if (!fileList.length) return;
-  event.target.value = '';
-  let imported = 0;
-  for (let fi = 0; fi < fileList.length; fi++) {
-    const file = fileList[fi];
-    showToast(`Processing ${fi + 1} of ${fileList.length}: ${file.name}`);
-    try {
-      await saveSession(file.name, await file.text());
-      imported++;
-    } catch (e) { console.error('Import failed:', file.name, e); }
+  if (!email || !password) { errEl.textContent = 'Email and password required'; return; }
+
+  btn.disabled = true;
+  errEl.textContent = '';
+
+  try {
+    if (authMode === 'register') {
+      const name = document.getElementById('authName').value.trim() || email.split('@')[0];
+      await SwingDoctorAPI.register(email, password, name);
+    } else {
+      await SwingDoctorAPI.login(email, password);
+    }
+    hideAuthScreen();
+    await loadApp();
+  } catch (e) {
+    errEl.textContent = e.message || 'Authentication failed';
+  } finally {
+    btn.disabled = false;
   }
-  showToast(`Imported ${imported} of ${fileList.length} file${fileList.length > 1 ? 's' : ''}`);
+}
+
+function handleLogout() {
+  closeProfileMenu();
+  SwingDoctorAPI.logout();
+  localStorage.removeItem('sd_active_profile');
+  _profiles = [];
+  _activeProfileId = null;
+  _sessionListCache = [];
+  DATA = null;
+  document.getElementById('appContainer').style.display = 'none';
+  showAuthScreen();
+}
+
+// ─── Profile Management (API-based) ───
+function getActiveProfileId() { return _activeProfileId; }
+function setActiveProfileId(id) {
+  _activeProfileId = id;
+  if (id) localStorage.setItem('sd_active_profile', id);
+  else localStorage.removeItem('sd_active_profile');
+}
+
+function getActiveProfile() {
+  return _profiles.find(p => p.id === _activeProfileId) || _profiles[0] || null;
+}
+
+async function fetchProfiles() {
+  _profiles = await SwingDoctorAPI.getProfiles();
+  if (!_profiles.length) {
+    // Create a default profile
+    const p = await SwingDoctorAPI.createProfile({ name: 'Shane' });
+    _profiles = [p];
+  }
+  // Restore or set active profile
+  if (!_activeProfileId || !_profiles.find(p => p.id === _activeProfileId)) {
+    const def = _profiles.find(p => p.is_default) || _profiles[0];
+    setActiveProfileId(def.id);
+  }
+}
+
+async function addNewProfile() {
+  closeProfileMenu();
+  const name = prompt('Golfer name:');
+  if (!name || !name.trim()) return;
+  try {
+    const p = await SwingDoctorAPI.createProfile({ name: name.trim() });
+    _profiles.push(p);
+    await switchToProfile(p.id);
+  } catch (e) { showToast('Failed: ' + e.message); }
+}
+
+async function switchToProfile(id) {
+  closeProfileMenu();
+  setActiveProfileId(id);
+  DATA = null;
+  updateProfileUI();
+  renderProfileSwitchList();
   await rebuildData();
 }
 
-// ─── CSV Parsing (ported from server.py) ───
-
-function parsePrefixDir(val, leftNeg = true) {
-  if (!val || !String(val).trim()) return null;
-  val = String(val).trim();
-  if (val.startsWith('L')) return (leftNeg ? -1 : 1) * parseFloat(val.slice(1));
-  if (val.startsWith('R')) return (leftNeg ? 1 : -1) * parseFloat(val.slice(1));
-  const n = parseFloat(val);
-  return isNaN(n) ? null : n;
+function renderProfileSwitchList() {
+  const others = _profiles.filter(p => p.id !== _activeProfileId);
+  const el = document.getElementById('profileSwitchList');
+  if (!others.length) { el.innerHTML = ''; return; }
+  el.innerHTML = others.map(p =>
+    `<button class="profile-menu-item" onclick="switchToProfile('${p.id}')" style="color:var(--text2)">
+      &#8627; ${p.name}
+    </button>`
+  ).join('');
 }
 
-function parseSuffixDir(val, leftNeg = true) {
-  if (!val || !String(val).trim()) return null;
-  val = String(val).trim();
-  const parts = val.split(/\s+/);
-  if (parts.length < 2) { const n = parseFloat(val); return isNaN(n) ? null : n; }
-  const n = parseFloat(parts[0]);
-  if (isNaN(n)) return null;
-  const d = parts[1];
-  if ('L DN O-I'.includes(d)) return (leftNeg ? -1 : 1) * n;
-  if ('R UP I-O'.includes(d)) return (leftNeg ? 1 : -1) * n;
-  return n;
+function toggleProfileMenu() {
+  document.getElementById('profileMenu').classList.toggle('hidden');
+}
+function closeProfileMenu() {
+  document.getElementById('profileMenu').classList.add('hidden');
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('#profileAvatar') && !e.target.closest('#profileMenu')) closeProfileMenu();
+});
+
+function updateProfileUI() {
+  const p = getActiveProfile();
+  if (!p) return;
+  const initials = p.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('profileAvatar').textContent = initials;
+  document.getElementById('profileMenuName').textContent = p.name;
 }
 
-function num(v) { if (v == null) return null; const n = parseFloat(String(v).trim()); return isNaN(n) ? null : n; }
+// ─── Profile Tab ───
+function updateProfileTab() {
+  const p = getActiveProfile();
+  if (!p) return;
 
-const CLUB_MAP = {'3h':'3 Hybrid','4h':'4 Hybrid','5h':'5 Hybrid','3i':'3 Iron','4i':'4 Iron',
-  '5i':'5 Iron','6i':'6 Iron','7i':'7 Iron','8i':'8 Iron','9i':'9 Iron',
-  'pw':'PW','sw':'SW','gw':'GW','lw':'LW','dr':'Driver','3w':'3 Wood','5w':'5 Wood'};
+  document.getElementById('profUsername').value = p.name;
+  document.getElementById('profGolferName').value = p.name || '';
+  document.getElementById('profLaunchSim').value = p.launch_monitor || '';
 
-function normalizeClub(raw) {
-  if (!raw) return raw;
-  raw = raw.trim();
-  return CLUB_MAP[raw.toLowerCase()] || raw;
+  // Bag from profile settings
+  const bag = p.settings?.bag || [];
+  document.getElementById('bagList').innerHTML = bag.length ? bag.map((b, i) =>
+    `<div class="bag-row">
+      <span class="bag-club">${b.club}</span>
+      <input class="bag-brand" value="${b.brand || ''}" placeholder="Brand / Model" onchange="updateBagBrand(${i}, this.value)">
+      <button class="bag-del" onclick="removeBagClub(${i})" title="Remove">&times;</button>
+    </div>`
+  ).join('') : '<div style="font-size:12px;color:var(--text3);padding:4px 0">No clubs added yet</div>';
+
+  // Balls from profile settings
+  const balls = p.settings?.balls || [];
+  document.getElementById('ballList').innerHTML = balls.length ? balls.map((b, i) =>
+    `<div class="bag-row">
+      <span class="bag-club" style="min-width:auto">${b}</span>
+      <span style="flex:1"></span>
+      <button class="bag-del" onclick="removeProfileBall(${i})" title="Remove">&times;</button>
+    </div>`
+  ).join('') : '<div style="font-size:12px;color:var(--text3);padding:4px 0">No balls added yet</div>';
 }
 
-function parseDrivingRangeCSV(content, filename) {
-  const lines = content.split('\n').map(l => l.trim()).filter(l => l);
-  if (lines.length < 3) return [];
-  const meta = lines[0].split(',');
-  const fileDate = meta[1] ? meta[1].trim() : null;
-  let headerIdx = -1;
-  for (let i = 0; i < Math.min(5, lines.length); i++) {
-    if (lines[i].startsWith('Club,Index,')) { headerIdx = i; break; }
-  }
-  if (headerIdx < 0) return [];
-  const shots = [];
-  for (let i = headerIdx + 1; i < lines.length; i++) {
-    const c = lines[i].split(',');
-    if (c.length < 16) continue;
-    if (!c[0].trim() || c[0].trim() === 'Average' || c[0].trim() === 'Deviation') continue;
-    shots.push({
-      source: filename, date: fileDate, club: normalizeClub(c[0]), index: parseInt(c[1]) || 0,
-      ballSpeed: num(c[2]), launchDirection: parsePrefixDir(c[3]), launchAngle: num(c[4]),
-      spinRate: num(c[5]), spinAxis: parsePrefixDir(c[6], false), backSpin: num(c[7]),
-      sideSpin: parsePrefixDir(c[8]), apex: num(c[9]), carry: num(c[10]), total: null, // CSV totals are unreliable; computed as carry*1.08
-      offline: parsePrefixDir(c[12]), landingAngle: num(c[13]), clubPath: parsePrefixDir(c[14]),
-      faceAngle: parsePrefixDir(c[15]), attackAngle: num(c[16]), dynamicLoft: num(c[17]),
-      clubSpeed: null, smashFactor: null,
-    });
-  }
-  return shots;
-}
-
-function parseShotAnalysisCSV(content, filename) {
-  const lines = content.split('\n');
-  const shots = [];
-  let currentClub = null, headerLine = null;
-  for (const line of lines) {
-    const l = line.trim();
-    if (!l || l.includes('Shot Analysis')) continue;
-    if (/^[A-Za-z0-9\s]+,$/.test(l) && !l.startsWith(',') && l.split(',').length <= 2) {
-      currentClub = normalizeClub(l.replace(',','').trim());
-      headerLine = null;
-      continue;
+async function saveProfileField(field, value) {
+  const p = getActiveProfile();
+  if (!p) return;
+  try {
+    if (field === 'golferName') {
+      await SwingDoctorAPI.updateProfile(p.id, { name: value });
+      p.name = value;
+    } else if (field === 'launchSim') {
+      await SwingDoctorAPI.updateProfile(p.id, { launch_monitor: value });
+      p.launch_monitor = value;
     }
-    if (l.startsWith(',Date,Time,') || l.startsWith('Shot Number,Date,Time,')) { headerLine = l; continue; }
-    if (l.startsWith('Average,')) continue;
-    if (!headerLine || !currentClub) continue;
-    const c = l.split(',');
-    if (c.length < 20) continue;
-    const idx = parseInt(c[0]);
-    if (isNaN(idx)) continue;
-    const date = (c[1] || '').trim().replace(/\//g, '-');
-    shots.push({
-      source: filename, date, club: currentClub, index: idx,
-      ballSpeed: num(c[10]), launchAngle: num(c[11]), launchDirection: parseSuffixDir(c[12]),
-      spinRate: num(c[15]) || num(c[14]), spinAxis: parseSuffixDir(c[16], false),
-      backSpin: parseSuffixDir(c[14]), sideSpin: parseSuffixDir(c[13]),
-      apex: num(c[5]), carry: num(c[3]), total: null,
-      offline: parseSuffixDir(c[6]), landingAngle: num(c[8]),
-      clubPath: c.length > 20 ? parseSuffixDir(c[20]) : null,
-      faceAngle: c.length > 27 ? parseSuffixDir(c[27]) : null,
-      attackAngle: c.length > 19 ? parseSuffixDir(c[19], false) : null,
-      dynamicLoft: c.length > 23 ? num(c[23]) : null,
-      clubSpeed: c.length > 16 ? num(c[16]) : null,
-      smashFactor: c.length > 18 ? num(c[18]) : null,
-    });
-  }
-  return shots;
+    updateProfileUI();
+  } catch (e) { showToast('Save failed: ' + e.message); }
 }
 
-// Bushnell Session export: email on line 1, club sections with ",Date,Time,Ball Speed,Launch Angle,..."
-// Columns: idx, date, time, ballSpeed, launchAngle, launchDir, sideSpin, backSpin, spinRate,
-//   spinAxisTilt, clubSpeed, clubSpeedImpact, efficiency, AoA, clubPath, faceToPath,
-//   lieAngle, dynamicLoft, closureRate, horzImpact, vertImpact, faceToTarget,
-//   carry(22), total(23), peakHeight(24), offline(25), totalOffline(26), curve(27),
-//   descentAngle(28), hangTime(29), ...
-function parseSessionCSV(content, filename) {
-  const lines = content.split('\n');
-  const shots = [];
-  let currentClub = null, headerLine = null;
-  for (const line of lines) {
-    const l = line.trim();
-    if (!l) { continue; }
-    // Club line: "7i, " or "3h, " or "Driver, "
-    if (/^[A-Za-z0-9\s]+,\s*$/.test(l) && !l.startsWith(',') && l.split(',').length <= 3) {
-      currentClub = normalizeClub(l.replace(/,\s*$/, '').trim());
-      headerLine = null;
-      continue;
-    }
-    if (l.startsWith(',Date,Time,') || l.startsWith('Shot Number,Date,Time,')) { headerLine = l; continue; }
-    if (l.startsWith('Average,')) continue;
-    if (!headerLine || !currentClub) continue;
-    const c = l.split(',');
-    if (c.length < 25) continue;
-    const idx = parseInt(c[0]);
-    if (isNaN(idx)) continue;
-    // Date: "3/19/26" → "03-19-2026"
-    const rawDate = (c[1] || '').trim();
-    const dp = rawDate.split('/');
-    let date = rawDate;
-    if (dp.length === 3) {
-      const mm = dp[0].padStart(2, '0');
-      const dd = dp[1].padStart(2, '0');
-      let yy = dp[2];
-      if (yy.length === 2) yy = (parseInt(yy) > 50 ? '19' : '20') + yy;
-      date = `${mm}-${dd}-${yy}`;
-    }
-    shots.push({
-      source: filename, date, club: currentClub, index: idx,
-      ballSpeed: num(c[3]), launchAngle: num(c[4]), launchDirection: num(c[5]),
-      sideSpin: num(c[6]), backSpin: num(c[7]), spinRate: num(c[8]),
-      spinAxis: num(c[9]), clubSpeed: num(c[10]),
-      smashFactor: num(c[12]), attackAngle: num(c[13]), clubPath: num(c[14]),
-      faceAngle: null, dynamicLoft: null,
-      carry: num(c[22]), total: num(c[23]), apex: num(c[24]),
-      offline: num(c[25]), landingAngle: num(c[28]),
-    });
-  }
-  return shots;
+async function _saveProfileSettings() {
+  const p = getActiveProfile();
+  if (!p) return;
+  try {
+    await SwingDoctorAPI.updateProfile(p.id, { settings: p.settings });
+  } catch (e) { showToast('Save failed: ' + e.message); }
 }
 
-// ─── Processing pipeline ───
-
-function avg(a) { return a.length ? a.reduce((s,v) => s+v, 0) / a.length : 0; }
-function std(a) { if (a.length < 2) return 0; const m = avg(a); return Math.sqrt(a.reduce((s,v) => s + (v-m)**2, 0) / (a.length-1)); }
-function median(a) { if (!a.length) return 0; const s = [...a].sort((x,y) => x-y); const m = Math.floor(s.length/2); return s.length%2 ? s[m] : (s[m-1]+s[m])/2; }
-function pearsonR(x, y) {
-  const n = x.length; if (n < 2) return 0;
-  const mx = avg(x), my = avg(y);
-  let num = 0, dx2 = 0, dy2 = 0;
-  for (let i = 0; i < n; i++) { const dx = x[i]-mx, dy = y[i]-my; num += dx*dy; dx2 += dx*dx; dy2 += dy*dy; }
-  const d = Math.sqrt(dx2*dy2); return d === 0 ? 0 : num/d;
+async function addBagClub() {
+  const club = prompt('Club name (e.g. Driver, 7 Iron, PW):');
+  if (!club || !club.trim()) return;
+  const brand = prompt('Brand / Model (optional):') || '';
+  const p = getActiveProfile();
+  if (!p) return;
+  if (!p.settings) p.settings = {};
+  if (!p.settings.bag) p.settings.bag = [];
+  p.settings.bag.push({ club: club.trim(), brand: brand.trim() });
+  await _saveProfileSettings();
+  updateProfileTab();
 }
 
-function theoreticalCarry(bs, la, sr) {
-  if (!bs || bs <= 0 || !la || la <= 0 || !sr || sr <= 0) return null;
-  const rho = 1.225 * Math.exp(-ELEVATION * 0.3048 / 8500);
-  const dr = rho / 1.225;
-  const v = bs * 0.44704, theta = la * Math.PI / 180;
-  let vx = v * Math.cos(theta), vy = v * Math.sin(theta);
-  const mass = 0.04593, r = 0.02135, area = Math.PI * r * r;
-  const Cd = 0.225 * dr, Cl = 0.00015 * sr / 1000 * dr;
-  let x = 0, y = 0, dt = 0.01;
-  for (let t = 0; t < 15; t += dt) {
-    const sp = Math.sqrt(vx*vx + vy*vy); if (!sp) break;
-    const drag = 0.5*rho*area*Cd*sp, lift = 0.5*rho*area*Cl*sp;
-    vx += (-drag*vx/mass)*dt; vy += (-9.81 - drag*vy/mass + lift*sp/mass)*dt;
-    x += vx*dt; y += vy*dt;
-    if (y < 0 && t > 0.1) break;
+async function updateBagBrand(idx, value) {
+  const p = getActiveProfile();
+  if (p?.settings?.bag?.[idx]) {
+    p.settings.bag[idx].brand = value;
+    await _saveProfileSettings();
   }
-  return x / 0.9144;
 }
 
-function processAllData(storedSessions) {
-  let allShots = [];
-  for (const sess of storedSessions) {
-    const content = sess.content || '';
-    const first = content.split('\n')[0] || '';
-    let shots;
-    if (first.includes('Shot Analysis')) {
-      shots = parseShotAnalysisCSV(content, sess.filename);
-    } else if (content.includes(',Date,Time,Ball Speed,Launch Angle,')) {
-      // Bushnell Session export (email on line 1, club sections with session headers)
-      shots = parseSessionCSV(content, sess.filename);
-    } else {
-      shots = parseDrivingRangeCSV(content, sess.filename);
-    }
-    allShots.push(...shots);
+async function removeBagClub(idx) {
+  const p = getActiveProfile();
+  if (p?.settings?.bag) {
+    p.settings.bag.splice(idx, 1);
+    await _saveProfileSettings();
+    updateProfileTab();
   }
+}
 
-  // Club correction: 6 Iron → 7 Iron for data before 03-19-2026
-  allShots.forEach(s => { if (s.club === '6 Iron' && s.date && s.date < '03-19-2026') s.club = '7 Iron'; });
+async function addBallType() {
+  const ball = prompt('Ball type (e.g. TaylorMade TP5x):');
+  if (!ball || !ball.trim()) return;
+  const p = getActiveProfile();
+  if (!p) return;
+  if (!p.settings) p.settings = {};
+  if (!p.settings.balls) p.settings.balls = [];
+  p.settings.balls.push(ball.trim());
+  await _saveProfileSettings();
+  updateProfileTab();
+}
 
-  // Ball type tagging — check saved overrides first, then defaults
-  const savedBallTypes = JSON.parse(lsGet('ball-types'));
-  allShots.forEach(s => {
-    s.ballType = savedBallTypes[s.date] || BALL_TYPE_DEFAULTS[s.date] || DEFAULT_BALL_TYPE;
-  });
+async function removeProfileBall(idx) {
+  const p = getActiveProfile();
+  if (p?.settings?.balls) {
+    p.settings.balls.splice(idx, 1);
+    await _saveProfileSettings();
+    updateProfileTab();
+  }
+}
 
-  // Dedup
-  const seen = new Set();
-  allShots = allShots.filter(s => { const k = `${s.date}|${s.club}|${s.index}`; if (seen.has(k)) return false; seen.add(k); return true; });
-  allShots.forEach((s, i) => { s.id = i; s.rawTheoCarry = theoreticalCarry(s.ballSpeed, s.launchAngle, s.spinRate); });
+// ─── Data Loading (API-based) ───
+function mapShot(shot, session) {
+  const date = isoToDisplay(session.session_date);
+  return {
+    id: shot.id,
+    source: session.source_file,
+    date,
+    club: shot.club_name,
+    index: shot.shot_index,
+    ballSpeed: shot.ball_speed_mph != null ? Number(shot.ball_speed_mph) : null,
+    launchAngle: shot.launch_angle_deg != null ? Number(shot.launch_angle_deg) : null,
+    launchDirection: shot.launch_direction_deg != null ? Number(shot.launch_direction_deg) : null,
+    spinRate: shot.spin_rate_rpm,
+    spinAxis: shot.spin_axis_deg != null ? Number(shot.spin_axis_deg) : null,
+    backSpin: shot.back_spin_rpm,
+    sideSpin: shot.side_spin_rpm,
+    apex: shot.apex_feet != null ? Number(shot.apex_feet) : null,
+    carry: shot.carry_yards != null ? Number(shot.carry_yards) : null,
+    total: shot.total_yards != null ? Number(shot.total_yards) : null,
+    offline: shot.offline_yards != null ? Number(shot.offline_yards) : null,
+    landingAngle: shot.landing_angle_deg != null ? Number(shot.landing_angle_deg) : null,
+    clubPath: shot.club_path_deg != null ? Number(shot.club_path_deg) : null,
+    faceAngle: shot.face_angle_deg != null ? Number(shot.face_angle_deg) : null,
+    attackAngle: shot.attack_angle_deg != null ? Number(shot.attack_angle_deg) : null,
+    dynamicLoft: shot.dynamic_loft_deg != null ? Number(shot.dynamic_loft_deg) : null,
+    clubSpeed: shot.club_speed_mph != null ? Number(shot.club_speed_mph) : null,
+    smashFactor: shot.smash_factor != null ? Number(shot.smash_factor) : null,
+    rawTheoCarry: shot.theoretical_carry != null ? Number(shot.theoretical_carry) : null,
+    filtered: shot.is_filtered,
+    ballType: session.ball_type || 'tp5x',
+    sessionId: session.id,
+  };
+}
 
-  // Bottom 20% filter
+function buildDataFromShots(allShots, sessionList) {
+  // Group by (date, club) for session aggregates
   const groups = {};
   allShots.forEach(s => { const k = `${s.date}|${s.club}`; (groups[k] = groups[k] || []).push(s); });
-  for (const shots of Object.values(groups)) {
-    const wc = shots.filter(s => s.carry != null && s.carry > 0).sort((a,b) => a.carry - b.carry);
-    if (!wc.length) { shots.forEach(s => s.filtered = false); continue; }
-    const cutoff = wc[Math.floor(wc.length * 0.2)]?.carry ?? 0;
-    shots.forEach(s => { s.filtered = s.carry != null && s.carry >= cutoff; });
-  }
 
-  // Session summaries
   const sessions = [];
   for (const [key, shots] of Object.entries(groups)) {
-    const f = shots.filter(s => s.filtered); if (!f.length) continue;
+    const f = shots.filter(s => s.filtered);
+    if (!f.length) continue;
     const [date, club] = key.split('|');
     const carries = f.filter(s => s.carry != null).map(s => s.carry);
     const speeds = f.filter(s => s.ballSpeed != null).map(s => s.ballSpeed);
@@ -877,7 +756,7 @@ function processAllData(storedSessions) {
     const paths = f.filter(s => s.clubPath != null).map(s => s.clubPath);
     const landings = f.filter(s => s.landingAngle != null).map(s => s.landingAngle);
     const offlines = f.filter(s => s.offline != null).map(s => s.offline);
-    const ballType = f[0]?.ballType || DEFAULT_BALL_TYPE;
+    const ballType = f[0]?.ballType || 'tp5x';
     sessions.push({ date, club, shotCount: f.length, ballType,
       ballSpeedAvg: avg(speeds), ballSpeedStd: std(speeds),
       carryAvg: avg(carries), carryStd: std(carries), carryMin: carries.length ? Math.min(...carries) : 0,
@@ -905,197 +784,189 @@ function processAllData(storedSessions) {
   clubSummaries.sort((a,b) => (BAG_ORDER[a.club] ?? 99) - (BAG_ORDER[b.club] ?? 99));
   for (let i = 0; i < clubSummaries.length - 1; i++) clubSummaries[i].gap = clubSummaries[i].carryAvg - clubSummaries[i+1].carryAvg;
 
-  // Calibration
-  const paired = allShots.filter(s => s.filtered && s.carry != null && s.rawTheoCarry != null);
-  let correlation = 0, rmse = 0, offset = 0;
-  if (paired.length > 1) {
-    const a = paired.map(s => s.carry), t = paired.map(s => s.rawTheoCarry);
-    correlation = pearsonR(a, t); offset = avg(a) - avg(t);
-    rmse = Math.sqrt(avg(paired.map(s => (s.carry - s.rawTheoCarry)**2)));
-  }
-
-  return { shots: allShots, sessions, clubSummaries,
-    calibration: { elevation: ELEVATION, airDensity: 1.225 * Math.exp(-ELEVATION*0.3048/8500), offset, correlation, rmse },
+  return {
+    shots: allShots,
+    sessions,
+    clubSummaries,
+    calibration: { elevation: 900, airDensity: 1.163, offset: 0, correlation: 0, rmse: 0 },
     lastUpdated: new Date().toISOString(),
-    fileCount: storedSessions.length,
+    fileCount: sessionList.length,
   };
 }
 
-// ─── Rebuild from IndexedDB ───
 async function rebuildData() {
-  const stored = await getAllSessions();
-  if (!stored.length) {
-    DATA = null;
-    document.getElementById('mainContent').style.display = 'none';
-    document.getElementById('emptyState').style.display = '';
-    return;
-  }
-  DATA = processAllData(stored);
-  document.getElementById('emptyState').style.display = 'none';
-  document.getElementById('mainContent').style.display = '';
-  if (!selectedClub || !DATA.clubSummaries.find(c => c.club === selectedClub)) {
-    selectedClub = DATA.clubSummaries.length > 0
-      ? DATA.clubSummaries[Math.min(2, DATA.clubSummaries.length - 1)].club : '7 Iron';
-  }
-  buildClubSelector();
-  buildDateFilter();
-  buildBallTypeFilter();
-  updateDashboard();
-}
+  const profileId = getActiveProfileId();
+  if (!profileId) return;
 
-async function removeSession(filename) {
-  await deleteSession(filename);
-  showToast('Removed ' + filename);
-  await rebuildData();
-}
+  showToast('Loading data...');
 
-// ─── Auto-bootstrap from server ───
-async function bootstrapFromServer() {
   try {
-    const res = await fetch('sessions.json');
-    if (!res.ok) return false;
-    const files = await res.json();
-    if (!files.length) return false;
-    document.getElementById('loadingOverlay').innerHTML = '<div>Loading sessions...</div><div style="font-size:12px;color:var(--text3)">0 / ' + files.length + '</div>';
-    let loaded = 0;
-    for (const filename of files) {
-      const r = await fetch('sessions/' + encodeURIComponent(filename));
-      if (!r.ok) continue;
-      const content = await r.text();
-      await saveSession(filename, content);
-      loaded++;
-      document.getElementById('loadingOverlay').innerHTML = '<div>Loading sessions...</div><div style="font-size:12px;color:var(--text3)">' + loaded + ' / ' + files.length + '</div>';
-    }
-    return loaded > 0;
-  } catch (e) { return false; }
-}
-
-// ─── Migration: move old g730 DB to first profile ───
-async function migrateOldData() {
-  // Check if old 'g730' DB has data
-  try {
-    const db = await new Promise((resolve, reject) => {
-      const req = indexedDB.open('g730', 1);
-      req.onupgradeneeded = e => { e.target.result.createObjectStore(STORE, { keyPath: 'filename' }); };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-    const tx = db.transaction(STORE, 'readonly');
-    const all = await new Promise((resolve, reject) => {
-      const r = tx.objectStore(STORE).getAll();
-      r.onsuccess = () => resolve(r.result);
-      r.onerror = () => reject(r.error);
-    });
-    db.close();
-    return all; // returns old sessions array (may be empty)
-  } catch (e) { return []; }
-}
-
-async function runMigration(username) {
-  const oldSessions = await migrateOldData();
-  if (!oldSessions.length) return;
-  // Copy to new profile DB
-  setActiveUser(username);
-  for (const sess of oldSessions) {
-    await saveSession(sess.filename, sess.content);
-  }
-  // Copy ball types
-  const oldBT = localStorage.getItem('g730-ball-types');
-  if (oldBT) lsSet('ball-types', oldBT);
-}
-
-// ─── Init ───
-async function init() {
-  try {
-    let activeUser = getActiveUser();
-    const profiles = getProfiles();
-
-    // Check if we need to migrate (no profiles exist but old DB might have data)
-    if (!Object.keys(profiles).length) {
-      const oldSessions = await migrateOldData();
-      if (oldSessions.length) {
-        createProfile('shane', 'Shane');
-        await runMigration('shane');
-        setActiveUser('shane');
-        activeUser = 'shane';
-      }
+    // Fetch all sessions (paginated, max 100 per page)
+    _sessionListCache = [];
+    let page = 1;
+    let hasMore = true;
+    while (hasMore) {
+      const sessionList = await SwingDoctorAPI.getSessions(profileId, { pageSize: 100, page });
+      _sessionListCache.push(...(sessionList.items || []));
+      hasMore = sessionList.has_more;
+      page++;
     }
 
-    // One-time migration v2: old 'shane' profile → 'legacy' (uses g730_shane DB)
-    // New profiles use different IDs so they get clean DBs
-    const profs = getProfiles();
-    if (!localStorage.getItem('g730-v3-migrated')) {
-      // Wipe all old profiles and start fresh
-      const newProfiles = {};
-      // Preserve old shane data under 'legacy' key — DB is g730_shane
-      if (profs['shane'] || profs['golfer']) {
-        newProfiles['legacy'] = {
-          username: 'legacy', golferName: 'Test (old data)',
-          createdAt: new Date().toISOString(),
-          profile: { launchSim: '', balls: [], bag: [] }
-        };
-      }
-      // If there was already a 'test' profile with copied data, keep it too
-      if (profs['test']) {
-        newProfiles['legacy'] = {
-          username: 'legacy', golferName: 'Test (old data)',
-          createdAt: profs['test'].createdAt || new Date().toISOString(),
-          profile: profs['test'].profile || { launchSim: '', balls: [], bag: [] }
-        };
-      }
-      // New family profiles with unique IDs (different from any old DB names)
-      newProfiles['shane3'] = { username: 'shane3', golferName: 'Shane', createdAt: new Date().toISOString(), profile: { launchSim: 'Bushnell Launch Pro', balls: [], bag: [] } };
-      newProfiles['zach3'] = { username: 'zach3', golferName: 'Zach', createdAt: new Date().toISOString(), profile: { launchSim: '', balls: [], bag: [] } };
-      newProfiles['sam3'] = { username: 'sam3', golferName: 'Sam', createdAt: new Date().toISOString(), profile: { launchSim: '', balls: [], bag: [] } };
-      newProfiles['luke3'] = { username: 'luke3', golferName: 'Luke', createdAt: new Date().toISOString(), profile: { launchSim: '', balls: [], bag: [] } };
-      saveProfiles(newProfiles);
-      setActiveUser('shane3');
-      activeUser = 'shane3';
-      localStorage.setItem('g730-v3-migrated', 'true');
-    }
-
-    // Ensure profiles exist
-    const p = getProfiles();
-    if (!Object.keys(p).length) {
-      createProfile('shane3', 'Shane');
-      createProfile('zach3', 'Zach');
-      createProfile('sam3', 'Sam');
-      createProfile('luke3', 'Luke');
-      setActiveUser('shane3');
-      activeUser = 'shane3';
-    }
-
-    // No active user or stale reference — pick the first profile
-    if (!activeUser || !getProfiles()[activeUser]) {
-      activeUser = Object.keys(getProfiles())[0];
-      setActiveUser(activeUser);
-    }
-
-    updateProfileUI();
-    renderProfileSwitchList();
-    const stored = await getAllSessions();
-    if (!stored.length) {
-      document.getElementById('loadingOverlay').classList.add('hidden');
+    if (!_sessionListCache.length) {
+      DATA = null;
+      document.getElementById('mainContent').style.display = 'none';
       document.getElementById('emptyState').style.display = '';
       return;
     }
-    await rebuildData();
-  } catch (err) {
-    document.getElementById('subtitle').textContent = 'Error: ' + err.message;
-  } finally {
-    document.getElementById('loadingOverlay').classList.add('hidden');
+
+    // Fetch all session details with shots in parallel (batch of 10)
+    const allShots = [];
+    const batchSize = 10;
+    for (let i = 0; i < _sessionListCache.length; i += batchSize) {
+      const batch = _sessionListCache.slice(i, i + batchSize);
+      const details = await Promise.all(batch.map(s => SwingDoctorAPI.getSession(s.id)));
+      for (const detail of details) {
+        if (detail.shots) {
+          for (const shot of detail.shots) {
+            allShots.push(mapShot(shot, detail));
+          }
+        }
+      }
+    }
+
+    DATA = buildDataFromShots(allShots, _sessionListCache);
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('mainContent').style.display = '';
+
+    if (!selectedClub || !DATA.clubSummaries.find(c => c.club === selectedClub)) {
+      selectedClub = DATA.clubSummaries.length > 0
+        ? DATA.clubSummaries[Math.min(2, DATA.clubSummaries.length - 1)].club : '7 Iron';
+    }
+    buildClubSelector();
+    buildDateFilter();
+    buildBallTypeFilter();
+    updateDashboard();
+  } catch (e) {
+    console.error('rebuildData failed:', e);
+    showToast('Failed to load data: ' + (e.message || JSON.stringify(e)));
   }
 }
 
-// ─── UI Helpers (same as before) ───
-function showToast(msg) { const el = document.getElementById('toast'); el.textContent = msg; el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 2500); }
+// ─── File Import (API upload) ───
+async function handleFileImport(event) {
+  const fileList = Array.from(event.target.files);
+  if (!fileList.length) return;
+  event.target.value = '';
+  const profileId = getActiveProfileId();
+  if (!profileId) { showToast('Select a profile first'); return; }
 
+  let imported = 0;
+  for (let fi = 0; fi < fileList.length; fi++) {
+    const file = fileList[fi];
+    showToast(`Uploading ${fi + 1} of ${fileList.length}: ${file.name}`);
+    try {
+      await SwingDoctorAPI.uploadCSV(profileId, file);
+      imported++;
+    } catch (e) {
+      console.error('Upload failed:', file.name, e);
+      showToast(`Failed: ${file.name} — ${e.message}`);
+    }
+  }
+  showToast(`Uploaded ${imported} of ${fileList.length} file${fileList.length > 1 ? 's' : ''}`);
+  await rebuildData();
+}
+
+// ─── Migration (localStorage/IndexedDB → API) ───
+function hasOldLocalData() {
+  return !!localStorage.getItem('g730-profiles');
+}
+
+function readOldIndexedDB(dbName) {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(dbName, 1);
+    req.onupgradeneeded = e => {
+      e.target.result.createObjectStore('sessions', { keyPath: 'filename' });
+    };
+    req.onsuccess = () => {
+      const db = req.result;
+      try {
+        const tx = db.transaction('sessions', 'readonly');
+        const store = tx.objectStore('sessions');
+        const getAll = store.getAll();
+        getAll.onsuccess = () => { db.close(); resolve(getAll.result); };
+        getAll.onerror = () => { db.close(); resolve([]); };
+      } catch (e) { db.close(); resolve([]); }
+    };
+    req.onerror = () => resolve([]);
+  });
+}
+
+async function runMigration() {
+  const banner = document.getElementById('migrationBanner');
+  try {
+    showToast('Migrating data...');
+    const oldProfiles = JSON.parse(localStorage.getItem('g730-profiles') || '{}');
+    const profileId = getActiveProfileId();
+
+    // Collect all old CSVs from all old profile DBs
+    let totalUploaded = 0;
+    for (const key of Object.keys(oldProfiles)) {
+      const dbName = `g730_${key}`;
+      const oldSessions = await readOldIndexedDB(dbName);
+      for (const sess of oldSessions) {
+        if (!sess.content) continue;
+        const file = new File([sess.content], sess.filename, { type: 'text/csv' });
+        try {
+          await SwingDoctorAPI.uploadCSV(profileId, file);
+          totalUploaded++;
+        } catch (e) {
+          console.warn('Migration upload failed:', sess.filename, e.message);
+        }
+      }
+    }
+
+    // Also try the root 'g730' DB
+    const rootSessions = await readOldIndexedDB('g730');
+    for (const sess of rootSessions) {
+      if (!sess.content) continue;
+      const file = new File([sess.content], sess.filename, { type: 'text/csv' });
+      try {
+        await SwingDoctorAPI.uploadCSV(profileId, file);
+        totalUploaded++;
+      } catch (e) { console.warn('Migration upload failed:', sess.filename, e.message); }
+    }
+
+    clearOldLocalStorage();
+    banner.style.display = 'none';
+    showToast(`Migrated ${totalUploaded} files`);
+    await rebuildData();
+  } catch (e) {
+    showToast('Migration failed: ' + e.message);
+  }
+}
+
+function dismissMigration() {
+  clearOldLocalStorage();
+  document.getElementById('migrationBanner').style.display = 'none';
+}
+
+function clearOldLocalStorage() {
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('g730-') && key !== 'g730-theme' && key !== 'g730-install-dismissed') {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(k => localStorage.removeItem(k));
+}
+
+// ─── Filtering ───
 function applyBallTypeFilter(items) {
   if (ballTypeFilter === 'all') return items;
   return items.filter(s => s.ballType === ballTypeFilter);
 }
 function parseDateStr(d) {
-  // Parse MM-DD-YYYY format to Date object
   if (!d) return null;
   const p = d.split('-');
   if (p.length !== 3) return null;
@@ -1140,7 +1011,7 @@ function buildDateFilter() {
   const months = [...new Set(allDates.map(d => d.substring(0, 2)))].sort();
   months.forEach(m => { const c = allDates.filter(d => d.startsWith(m)).length; html += `<option value="month:${m}">${monthNames[m]||m} (${c} sessions)</option>`; });
   html += '<option disabled>──────────</option>';
-  allDates.forEach(d => { const clubs = DATA.sessions.filter(s => s.date === d).map(s => s.club).join(', '); html += `<option value="session:${d}">${d} · ${clubs}</option>`; });
+  allDates.forEach(d => { const clubs = DATA.sessions.filter(s => s.date === d).map(s => s.club).join(', '); html += `<option value="session:${d}">${d} &middot; ${clubs}</option>`; });
   select.innerHTML = html;
   select.value = dateFilterMode;
 }
@@ -1171,13 +1042,14 @@ function switchTab(tab) {
   setTimeout(() => updateDashboard(), 50);
 }
 
+// ─── Dashboard ───
 function updateDashboard() {
   if (!DATA) return;
   const fs = getFilteredShots(), fss = getFilteredSessions();
   const active = fs.filter(s => s.filtered);
   const label = dateFilterMode === 'all' ? 'all time' : dateFilterMode.startsWith('month:') ? dateFilterMode.split(':')[1] : dateFilterMode.split(':')[1];
-  const ballLabel = ballTypeFilter !== 'all' ? ` · ${ballTypeFilter}` : '';
-  document.getElementById('subtitle').textContent = `${active.length} shots · ${fss.length} sessions · ${label}${ballLabel} · ${DATA.fileCount} files`;
+  const ballLabel = ballTypeFilter !== 'all' ? ` \u00b7 ${ballTypeFilter}` : '';
+  document.getElementById('subtitle').textContent = `${active.length} shots \u00b7 ${fss.length} sessions \u00b7 ${label}${ballLabel} \u00b7 ${DATA.fileCount} files`;
   updateKPIs(fs); updateTrendChart(fss); updateDistChart(fs); updateYardageChart(fs);
   updateYardageTable(fs); updateScatterChart(fs); updateSessionTable(fss); updateProgressTab(); updateManageTab(); updateProfileTab();
 }
@@ -1197,13 +1069,14 @@ function updateKPIs(allShots) {
     <div class="kpi"><div class="kpi-value" style="color:${PINK}">${faces.length?(avg(faces)>=0?'+':'')+avg(faces).toFixed(1)+'&deg;':'--'}</div><div class="kpi-label">Face Angle</div><div class="kpi-sub">${faces.length} shots</div></div>`;
 }
 
+// ─── Charts ───
 function chartOpts() { return { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: TEXT3, font: { size: 10 } } } }, scales: { x: { ticks: { color: TEXT3, font: { size: 10 } }, grid: { color: BORDER } }, y: { ticks: { color: TEXT3, font: { size: 10 } }, grid: { color: BORDER } } } }; }
 
 function updateTrendChart(sess) {
   const s = sess.filter(s=>s.club===selectedClub).sort((a,b)=>a.date.localeCompare(b.date));
   if (charts.trend) charts.trend.destroy();
   const ctx = document.getElementById('trendChart'); if (!ctx) return;
-  charts.trend = new Chart(ctx, { type:'line', data:{ labels:s.map(x=>x.date.replace(/-2026$/,'')),
+  charts.trend = new Chart(ctx, { type:'line', data:{ labels:s.map(x=>x.date.replace(/-\d{4}$/,'')),
     datasets:[{label:'Carry (yds)',data:s.map(x=>+x.carryAvg.toFixed(1)),borderColor:GREEN,backgroundColor:GREEN+'22',tension:.3,fill:true,pointRadius:4,pointBackgroundColor:GREEN},
     {label:'Ball Speed',data:s.map(x=>+x.ballSpeedAvg.toFixed(1)),borderColor:BLUE,borderDash:[4,4],tension:.3,pointRadius:3,pointBackgroundColor:BLUE}]}, options:chartOpts()});
 }
@@ -1218,9 +1091,6 @@ function updateDistChart(allShots) {
 }
 
 // ─── Full bag with estimated clubs ───
-const FULL_BAG = ['Driver','3 Wood','3 Hybrid','5 Iron','6 Iron','7 Iron','8 Iron','9 Iron','PW','UW','SW'];
-const BAG_ORDER = Object.fromEntries(FULL_BAG.map((c,i) => [c, i]));
-
 function buildFullBag(allShots) {
   const cm = {}; allShots.filter(s => s.filtered).forEach(s => { (cm[s.club] = cm[s.club] || []).push(s); });
   const real = {};
@@ -1236,11 +1106,9 @@ function buildFullBag(allShots) {
       carryStd: std(c), ballSpeedAvg: avg(sp), spinRateAvg: avg(sn), shotCount: c.length, estimated: false };
   }
 
-  // Build sorted list of known clubs in bag order
   const known = Object.values(real).sort((a, b) => (BAG_ORDER[a.club] ?? 99) - (BAG_ORDER[b.club] ?? 99));
   if (known.length < 2) return known;
 
-  // Interpolate missing clubs between the first and last known club
   const firstIdx = BAG_ORDER[known[0].club] ?? 0;
   const lastIdx = BAG_ORDER[known[known.length - 1].club] ?? FULL_BAG.length - 1;
   const result = [];
@@ -1248,8 +1116,6 @@ function buildFullBag(allShots) {
   for (let i = firstIdx; i <= lastIdx; i++) {
     const club = FULL_BAG[i];
     if (real[club]) { result.push(real[club]); continue; }
-
-    // Find nearest known clubs above and below in bag order
     let above = null, below = null;
     for (let j = i - 1; j >= 0; j--) { if (real[FULL_BAG[j]]) { above = real[FULL_BAG[j]]; break; } }
     for (let j = i + 1; j < FULL_BAG.length; j++) { if (real[FULL_BAG[j]]) { below = real[FULL_BAG[j]]; break; } }
@@ -1272,7 +1138,6 @@ function buildFullBag(allShots) {
 function updateYardageChart(allShots) {
   const bag = buildFullBag(allShots);
   if (charts.yardage) charts.yardage.destroy(); if (!bag.length) return;
-  // Compute gaps
   for (let i = 0; i < bag.length - 1; i++) bag[i].gap = bag[i].carryAvg - bag[i + 1].carryAvg;
   const colors = bag.map(s => s.estimated ? '#3a4550' : GREEN);
   const borderColors = bag.map(s => s.estimated ? '#2a3540' : GREEN);
@@ -1294,7 +1159,6 @@ function updateYardageChart(allShots) {
           const b = bag[ctx.dataIndex];
           return `Carry: ${b.carryAvg.toFixed(0)} | Total: ${b.totalAvg.toFixed(0)}${b.estimated ? ' (est)' : ''}`;
         }}},
-        // Datalabels via custom plugin
       },
       scales: {
         x: { ticks: { color: (ctx) => TEXT3, font: { size: 10 } }, grid: { display: false } },
@@ -1343,8 +1207,8 @@ function generateYardageCard() {
   const fs = getFilteredShots();
   const bag = buildFullBag(fs);
   if (!bag.length) { showToast('No club data available'); return; }
-  const user = getActiveUser(), profiles = getProfiles();
-  const name = profiles[user]?.golferName || user;
+  const p = getActiveProfile();
+  const name = p ? p.name : 'Golfer';
   const dates = [...new Set(fs.map(s => s.date))].sort();
   const dateRange = dates.length ? `${dates[0]} to ${dates[dates.length-1]}` : '';
   let html = `<div id="yardageCardPrint" style="background:#fff;color:#111;border-radius:12px;padding:20px;font-family:system-ui,sans-serif">
@@ -1389,7 +1253,7 @@ function updateScatterChart(allShots) {
 function updateSessionTable(sessions) {
   const sess=sessions.filter(s=>s.club===selectedClub).sort((a,b)=>a.date.localeCompare(b.date));
   document.getElementById('sessionTable').innerHTML=`<tr><th style="text-align:left">Date</th><th>Ball</th><th>Carry</th><th>Std</th><th>Speed</th><th>Spin</th><th>Launch</th><th>Shots</th></tr>
-    ${sess.map(s=>`<tr><td>${s.date.replace(/-2026$/,'')}</td><td style="color:${TEXT3};font-size:11px">${s.ballType||''}</td><td style="font-weight:600;color:${GREEN}">${s.carryAvg.toFixed(1)}</td><td>${s.carryStd.toFixed(1)}</td>
+    ${sess.map(s=>`<tr><td>${s.date.replace(/-\d{4}$/,'')}</td><td style="color:${TEXT3};font-size:11px">${s.ballType||''}</td><td style="font-weight:600;color:${GREEN}">${s.carryAvg.toFixed(1)}</td><td>${s.carryStd.toFixed(1)}</td>
     <td>${s.ballSpeedAvg.toFixed(1)}</td><td>${Math.round(s.spinRateAvg)}</td><td>${s.launchAngleAvg.toFixed(1)}&deg;</td><td style="color:${TEXT3}">${s.shotCount}</td></tr>`).join('')}`;
 }
 
@@ -1402,7 +1266,7 @@ function linearTrend(data) {
   return data.map((_,i)=>+(slope*i+intercept).toFixed(1));
 }
 
-let progressMetric = 'carry'; // carry, dispersion, consistency, speed, spin, launch, clubPath, faceAngle
+let progressMetric = 'carry';
 
 const PROGRESS_METRICS = {
   carry:      { key: 'carryAvg',       label: 'Carry',       color: GREEN,  unit: 'yds', hib: true, dec: 1 },
@@ -1410,9 +1274,9 @@ const PROGRESS_METRICS = {
   consistency:{ key: 'carryStd',       label: 'Consistency',  color: RED,    unit: 'yds', hib: false, dec: 1, reverse: true, yLabel: 'yards (lower = more consistent)' },
   speed:      { key: 'ballSpeedAvg',   label: 'Ball Speed',  color: BLUE,   unit: 'mph', hib: true, dec: 1 },
   spin:       { key: 'spinRateAvg',    label: 'Spin Rate',   color: GOLD,   unit: 'rpm', hib: false, dec: 0 },
-  launch:     { key: 'launchAngleAvg', label: 'Launch',      color: TEAL,   unit: '°', hib: false, dec: 1 },
-  clubPath:   { key: 'clubPathAvg',    label: 'Club Path',   color: PURPLE, unit: '°', hib: false, dec: 1, yLabel: 'degrees (0 = square)' },
-  faceAngle:  { key: 'faceAngleAvg',   label: 'Face Angle',  color: PINK,   unit: '°', hib: false, dec: 1, yLabel: 'degrees (0 = square)' },
+  launch:     { key: 'launchAngleAvg', label: 'Launch',      color: TEAL,   unit: '\u00b0', hib: false, dec: 1 },
+  clubPath:   { key: 'clubPathAvg',    label: 'Club Path',   color: PURPLE, unit: '\u00b0', hib: false, dec: 1, yLabel: 'degrees (0 = square)' },
+  faceAngle:  { key: 'faceAngleAvg',   label: 'Face Angle',  color: PINK,   unit: '\u00b0', hib: false, dec: 1, yLabel: 'degrees (0 = square)' },
 };
 
 function selectProgressMetric(m) {
@@ -1428,12 +1292,11 @@ function updateProgressTab() {
     return;
   }
 
-  // Build per-session metrics
   const sm = allSess.map(sess => {
     const shots = DATA.shots.filter(s => s.filtered && s.club === sess.club && s.date === sess.date);
     const off = shots.filter(s => s.offline != null).map(s => s.offline);
     return {
-      date: sess.date, label: sess.date.replace(/-2026$/, ''),
+      date: sess.date, label: sess.date.replace(/-\d{4}$/, ''),
       carryAvg: sess.carryAvg, carryStd: sess.carryStd, ballSpeedAvg: sess.ballSpeedAvg,
       spinRateAvg: sess.spinRateAvg, launchAngleAvg: sess.launchAngleAvg,
       clubPathAvg: sess.clubPathAvg, faceAngleAvg: sess.faceAngleAvg,
@@ -1455,7 +1318,6 @@ function updateProgressTab() {
     return { current: la, delta: d, pct, dir: Math.abs(pct) < 2 ? 'flat' : (m.hib ? d > 0 : d < 0) ? 'up' : 'down' };
   }
 
-  // Build summary cards — show all metrics as clickable
   const metricsToShow = ['carry', 'dispersion', 'consistency', 'speed', 'spin', 'launch', 'clubPath', 'faceAngle'];
   let html = '';
   for (const mKey of metricsToShow) {
@@ -1477,7 +1339,6 @@ function updateProgressTab() {
   }
   document.getElementById('trendSummary').innerHTML = html;
 
-  // Draw chart for selected metric
   const m = PROGRESS_METRICS[progressMetric];
   const labels = sm.map(s => s.label);
   const data = sm.map(s => s[m.key] != null ? +(+s[m.key]).toFixed(m.dec) : null);
@@ -1504,114 +1365,77 @@ function updateProgressTab() {
   });
 }
 
-// ─── Data Management Tab ───
-async function updateManageTab() {
-  const stored = await getAllSessions();
+// ─── Data Management Tab (API-based) ───
+function updateManageTab() {
   const el = document.getElementById('manageList');
-  if (!stored.length) { el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px">No sessions imported yet.</div>'; return; }
-
-  // Group sessions by date and show ball type per date
-  const dateFiles = {};
-  for (const s of stored) {
-    const first = s.content.split('\n')[0] || '';
-    const shots = first.includes('Shot Analysis')
-      ? parseShotAnalysisCSV(s.content, s.filename)
-      : parseDrivingRangeCSV(s.content, s.filename);
-    const dates = [...new Set(shots.map(sh => sh.date).filter(Boolean))];
-    for (const d of dates) { (dateFiles[d] = dateFiles[d] || []).push(s.filename); }
+  if (!_sessionListCache.length) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:12px;padding:8px">No sessions imported yet.</div>';
+    return;
   }
 
-  const savedBallTypes = JSON.parse(lsGet('ball-types'));
-  const allDates = Object.keys(dateFiles).sort();
   const defaultTypes = ['tp5x', 'tp5', 'various', 'prov1', 'other'];
-  // Merge any custom ball types the user has used before
-  const customTypes = Object.values(savedBallTypes).filter(t => !defaultTypes.includes(t));
-  const knownBallTypes = [...defaultTypes, ...new Set(customTypes)];
 
-  let dateHtml = '<div style="margin-bottom:12px"><div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Ball Type by Session Date</div>';
+  // Group by date for display
+  const byDate = {};
+  _sessionListCache.forEach(s => {
+    const d = isoToDisplay(s.session_date);
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(s);
+  });
+
+  const allDates = Object.keys(byDate).sort();
+  let html = '';
+
   for (const d of allDates) {
-    const bt = savedBallTypes[d] || BALL_TYPE_DEFAULTS[d] || DEFAULT_BALL_TYPE;
-    dateHtml += `<div class="manage-row" style="align-items:center">
-      <div class="manage-file">${d}</div>
-      <select class="filter-select" style="font-size:11px;padding:3px 6px" onchange="handleBallTypeSelect('${d}',this)">
-        ${knownBallTypes.map(t => `<option value="${t}" ${t === bt ? 'selected' : ''}>${t}</option>`).join('')}
-        <option value="__custom__">+ Custom...</option>
-      </select>
-    </div>`;
-  }
-  dateHtml += '</div>';
-
-  el.innerHTML = dateHtml + '<div style="font-size:11px;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Imported Files</div>' +
-    stored.sort((a,b) => a.filename.localeCompare(b.filename)).map(s => {
-    const lines = s.content.split('\n').filter(l => l.trim()).length;
-    return `<div class="manage-row">
-      <div class="manage-file">${s.filename}</div>
-      <div class="manage-meta">~${lines} rows</div>
-      <button class="manage-del" onclick="removeSession('${s.filename.replace(/'/g,"\\'")}')">Remove</button>
-    </div>`;
-  }).join('');
-}
-
-function handleBallTypeSelect(date, selectEl) {
-  if (selectEl.value === '__custom__') {
-    const custom = prompt('Enter ball type name:');
-    if (custom && custom.trim()) {
-      setBallType(date, custom.trim().toLowerCase());
-    } else {
-      // Reset to current value
-      const saved = JSON.parse(lsGet('ball-types'));
-      selectEl.value = saved[date] || BALL_TYPE_DEFAULTS[date] || DEFAULT_BALL_TYPE;
+    const sessions = byDate[d];
+    for (const s of sessions) {
+      const bt = s.ball_type || 'tp5x';
+      html += `<div class="manage-row" style="align-items:center">
+        <div class="manage-file">${d} &middot; ${s.source_file}</div>
+        <div class="manage-meta">${s.shot_count} shots</div>
+        <select class="filter-select" style="font-size:11px;padding:3px 6px" onchange="updateSessionBallType('${s.id}', this.value)">
+          ${defaultTypes.map(t => `<option value="${t}" ${t === bt ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+        <button class="manage-del" onclick="removeSession('${s.id}')">Remove</button>
+      </div>`;
     }
-  } else {
-    setBallType(date, selectEl.value);
   }
+
+  el.innerHTML = html || '<div style="color:var(--text3);font-size:12px;padding:8px">No sessions imported yet.</div>';
 }
 
-async function setBallType(date, type) {
-  const saved = JSON.parse(lsGet('ball-types'));
-  saved[date] = type;
-  lsSet('ball-types', JSON.stringify(saved));
-  showToast(`${date} → ${type}`);
-  await rebuildData();
-}
-
-// ─── Server Sync ───
-async function syncFromServer() {
+async function updateSessionBallType(sessionId, ballType) {
   try {
-    const res = await fetch('sessions.json');
-    if (!res.ok) { showToast('Server not reachable'); return; }
-    const files = await res.json();
-    const stored = await getAllSessions();
-    const existing = new Set(stored.map(s => s.filename));
-    const newFiles = files.filter(f => !existing.has(f));
-    if (!newFiles.length) { showToast('Already up to date'); return; }
-    let loaded = 0;
-    for (const filename of newFiles) {
-      const r = await fetch('sessions/' + encodeURIComponent(filename));
-      if (!r.ok) continue;
-      const content = await r.text();
-      await saveSession(filename, content);
-      loaded++;
-    }
-    showToast(`Synced ${loaded} new file${loaded !== 1 ? 's' : ''}`);
+    await SwingDoctorAPI.updateSession(sessionId, { ball_type: ballType });
+    // Update cache
+    const s = _sessionListCache.find(s => s.id === sessionId);
+    if (s) s.ball_type = ballType;
+    showToast(`Ball type updated`);
     await rebuildData();
-  } catch (e) { showToast('Sync failed — is server running?'); }
+  } catch (e) { showToast('Update failed: ' + e.message); }
+}
+
+async function removeSession(sessionId) {
+  if (!confirm('Delete this session and all its shots?')) return;
+  try {
+    await SwingDoctorAPI.deleteSession(sessionId);
+    _sessionListCache = _sessionListCache.filter(s => s.id !== sessionId);
+    showToast('Session removed');
+    await rebuildData();
+  } catch (e) { showToast('Delete failed: ' + e.message); }
 }
 
 // ─── Hard Refresh ───
 async function hardRefresh() {
   showToast('Refreshing...');
-  // Clear service worker caches
   if ('caches' in window) {
     const keys = await caches.keys();
     await Promise.all(keys.map(k => caches.delete(k)));
   }
-  // Unregister service workers so fresh one installs on reload
   if ('serviceWorker' in navigator) {
     const regs = await navigator.serviceWorker.getRegistrations();
     await Promise.all(regs.map(r => r.unregister()));
   }
-  // Force reload from server (bypass cache)
   window.location.reload(true);
 }
 
@@ -1623,7 +1447,6 @@ function toggleTheme() {
   localStorage.setItem('g730-theme', next);
   updateThemeIcon(next);
   applyThemeMeta(next);
-  // Update Chart.js colors for theme
   updateChartColors(next);
 }
 
@@ -1631,19 +1454,13 @@ function updateThemeIcon(theme) {
   const icon = document.getElementById('themeIcon');
   if (!icon) return;
   if (theme === 'light') {
-    // Moon icon for "switch to dark"
     icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
   } else {
-    // Sun icon for "switch to light"
     icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
   }
 }
 
 function updateChartColors(theme) {
-  // Re-read CSS variables for chart constants
-  const style = getComputedStyle(document.documentElement);
-  // No need to reassign JS constants — charts re-render from updateDashboard using CSS vars
-  // Just trigger a re-render
   if (DATA) updateDashboard();
 }
 
@@ -1668,7 +1485,7 @@ function showInstallBanner() {
   if (!isIOS || isStandalone || dismissed) return;
   const banner = document.createElement('div');
   banner.className = 'install-banner';
-  banner.innerHTML = `<div class="install-banner-icon">G7</div><div class="install-banner-text">
+  banner.innerHTML = `<div class="install-banner-icon">SD</div><div class="install-banner-text">
     <div class="install-banner-title">Add Swing Doctor to Home Screen</div>
     <div class="install-banner-sub">Tap <strong style="font-size:16px">&#9769;</strong> then "Add to Home Screen"</div></div>
     <button class="install-banner-close" onclick="dismissInstallBanner()">&times;</button>`;
@@ -1676,9 +1493,55 @@ function showInstallBanner() {
 }
 function dismissInstallBanner() { const b=document.querySelector('.install-banner'); if(b)b.remove(); localStorage.setItem('g730-install-dismissed','1'); }
 
+// ─── Init ───
+async function loadApp() {
+  try {
+    await fetchProfiles();
+    updateProfileUI();
+    renderProfileSwitchList();
+
+    // Check for old local data to migrate
+    if (hasOldLocalData()) {
+      document.getElementById('migrationBanner').style.display = '';
+    }
+
+    await rebuildData();
+
+    if (!DATA || !DATA.shots.length) {
+      document.getElementById('mainContent').style.display = 'none';
+      document.getElementById('emptyState').style.display = '';
+    }
+  } catch (err) {
+    console.error('loadApp error:', err);
+    if (err.status === 401) {
+      SwingDoctorAPI.logout();
+      showAuthScreen();
+    } else {
+      document.getElementById('subtitle').textContent = 'Error: ' + err.message;
+    }
+  }
+}
+
+async function init() {
+  try {
+    if (SwingDoctorAPI.isAuthenticated()) {
+      hideAuthScreen();
+      await loadApp();
+    } else {
+      showAuthScreen();
+    }
+  } catch (err) {
+    console.error('init error:', err);
+    showAuthScreen();
+  } finally {
+    document.getElementById('loadingOverlay').classList.add('hidden');
+  }
+}
+
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 init();
 showInstallBanner();
+
 </script>
 </body>
 </html>

@@ -22,7 +22,7 @@
 
   const API_BASE = isLocalhost
     ? 'http://localhost:8000/api/v1'
-    : 'https://api.swing.doctor/api/v1';
+    : 'https://swing-doctor-api.fly.dev/api/v1';
 
   const TOKEN_KEY = 'sd_access_token';
   const REFRESH_KEY = 'sd_refresh_token';
@@ -146,7 +146,7 @@
 
     let res;
     try {
-      res = await fetch(url, Object.assign({}, options, { headers: headers }));
+      res = await fetch(url, Object.assign({}, options, { headers: headers, cache: 'no-store' }));
     } catch (err) {
       throw new SwingDoctorAPIError(0, 'Network request failed: ' + err.message, 'network_error');
     }
