@@ -1247,7 +1247,7 @@ function updateYardageTable(allShots) {
   const e = s => s.estimated;
   const d = (v, dec) => v != null && !isNaN(v) ? v.toFixed(dec) : '--';
   const sign = (v, dec) => v != null && !isNaN(v) ? (v >= 0 ? '+' : '') + v.toFixed(dec) : '--';
-  const TARGETS = {'Driver':210,'3 Wood':210,'3 Hybrid':198,'5 Iron':178,'6 Iron':158,'7 Iron':148,'8 Iron':138,'9 Iron':128,'PW':118,'GW':108,'UW':98,'SW':88};
+  const TARGETS = {'Driver':230,'3 Wood':215,'3 Hybrid':198,'5 Iron':178,'6 Iron':158,'7 Iron':148,'8 Iron':138,'9 Iron':128,'PW':118,'GW':108,'UW':98,'SW':88};
   document.getElementById('yardageTable').innerHTML = `<tr>
       <th style="text-align:left">Club</th><th>Carry</th><th>Total</th><th>Target</th><th>+/-</th><th>Gap</th><th>Std</th>
       <th>Ball Spd</th><th>Club Spd</th><th>Spin</th><th>Launch</th><th>Land</th><th>Apex</th>
