@@ -71,10 +71,17 @@ class Settings(BaseSettings):
     @field_validator("allowed_origins", mode="before")
     @classmethod
     def parse_origins(cls, v: str | list[str]) -> list[str]:
-        """Accept comma-separated string or list."""
+        """Accept comma-separated string or list. Strips trailing slashes."""
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
-        return v
+            origins = [origin.strip().rstrip("/") for origin in v.split(",")]
+        else:
+            origins = [o.rstrip("/") for o in v]
+        # Include both with and without trailing slash for browser compat
+        expanded = []
+        for o in origins:
+            expanded.append(o)
+            expanded.append(o + "/")
+        return expanded
 
     @property
     def is_production(self) -> bool:
