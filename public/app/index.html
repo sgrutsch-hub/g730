@@ -421,7 +421,7 @@ let dateFilterMode = 'all';
 let authMode = 'login'; // 'login' or 'register'
 const charts = {};
 
-const FULL_BAG = ['Driver','3 Wood','3 Hybrid','5 Iron','6 Iron','7 Iron','8 Iron','9 Iron','PW','GW','UW','SW'];
+const FULL_BAG = ['Driver','3 Wood','2 Hybrid','3 Hybrid','4 Hybrid','5 Iron','6 Iron','7 Iron','8 Iron','9 Iron','PW','GW','UW','SW'];
 const BAG_ORDER = Object.fromEntries(FULL_BAG.map((c,i) => [c, i]));
 const TAB_LIST = ['overview','progress','yardage','dispersion','sessions','manage','profile'];
 
@@ -1195,7 +1195,7 @@ function updateYardageTable(allShots) {
   const e = s => s.estimated;
   const d = (v, dec) => v != null && !isNaN(v) ? v.toFixed(dec) : '--';
   const sign = (v, dec) => v != null && !isNaN(v) ? (v >= 0 ? '+' : '') + v.toFixed(dec) : '--';
-  const TARGETS = {'Driver':230,'3 Wood':215,'3 Hybrid':198,'5 Iron':178,'6 Iron':158,'7 Iron':148,'8 Iron':138,'9 Iron':128,'PW':118,'GW':108,'UW':98,'SW':88};
+  const TARGETS = {'Driver':230,'3 Wood':215,'2 Hybrid':205,'3 Hybrid':198,'4 Hybrid':188,'5 Iron':178,'6 Iron':158,'7 Iron':148,'8 Iron':138,'9 Iron':128,'PW':118,'GW':108,'UW':98,'SW':88};
   document.getElementById('yardageTable').innerHTML = `<tr>
       <th style="text-align:left">Club</th><th>Carry</th><th>Total</th><th>Target</th><th>+/-</th><th>Gap</th><th>Std</th>
       <th>Ball Spd</th><th>Club Spd</th><th>Spin</th><th>Launch</th><th>Land</th><th>Apex</th>

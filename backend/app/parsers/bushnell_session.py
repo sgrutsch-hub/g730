@@ -28,7 +28,7 @@ from decimal import Decimal, InvalidOperation
 from app.parsers.base import BaseParser, ParsedSession, ParsedShot
 
 CLUB_MAP: dict[str, str] = {
-    "3h": "3 Hybrid", "4h": "4 Hybrid", "5h": "5 Hybrid",
+    "2h": "2 Hybrid", "3h": "3 Hybrid", "4h": "4 Hybrid", "5h": "5 Hybrid",
     "3i": "3 Iron", "4i": "4 Iron", "5i": "5 Iron", "6i": "6 Iron",
     "7i": "7 Iron", "8i": "8 Iron", "9i": "9 Iron",
     "pw": "PW", "sw": "SW", "gw": "GW", "lw": "LW",
