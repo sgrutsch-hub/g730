@@ -1205,7 +1205,7 @@ function updateYardageTable(allShots) {
   profileClubs.forEach(c => { if (c.target_carry != null) TARGETS[c.name] = Number(c.target_carry); });
   document.getElementById('yardageTable').innerHTML = `<tr>
       <th style="text-align:left">Club</th><th>Carry</th><th>Total</th><th>Target</th><th>+/-</th><th>Gap</th><th>Std</th>
-      <th>Ball Spd</th><th>Club Spd</th><th>Spin</th><th>Launch</th><th>Land</th><th>Apex</th>
+      <th>Ball Spd</th><th>Club Spd</th><th>Spin</th><th>Launch</th><th>Apex</th>
       <th>AoA</th><th>Path</th><th>Offline</th><th>Kept</th></tr>
     ${bag.map(s => {
       const cls = e(s) ? ' class="estimated"' : '';
@@ -1227,7 +1227,6 @@ function updateYardageTable(allShots) {
         <td>${e(s) ? '--' : d(s.clubSpeedAvg,0)}</td>
         <td>${d(s.spinRateAvg,0)}</td>
         <td>${e(s) ? '--' : d(s.launchAngleAvg,1)+'&deg;'}</td>
-        <td>${e(s) ? '--' : d(s.landingAngleAvg,1)+'&deg;'}</td>
         <td>${e(s) ? '--' : d(s.apexAvg,0)}</td>
         <td style="color:${TEXT2}">${e(s) ? '--' : sign(s.attackAngleAvg,1)+'&deg;'}</td>
         <td style="color:${TEXT2}">${e(s) ? '--' : sign(s.clubPathAvg,1)+'&deg;'}</td>
