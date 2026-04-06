@@ -252,7 +252,7 @@ class BushnellShotAnalysisParser(BaseParser):
         for date_str, shots in sorted(shots_by_date.items()):
             session_date = self._parse_date(date_str)
             if not session_date:
-                continue
+                session_date = date.today()
             sessions.append(
                 ParsedSession(
                     source_file=f"{filename}_{date_str}",

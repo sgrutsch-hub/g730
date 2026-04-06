@@ -146,11 +146,9 @@
 
     let res;
     try {
-      var fetchConfig = Object.assign({}, options, { headers: headers });
-      // Only bust cache on GET requests — cache: no-store can break FormData on POST
-      if (!options.method || options.method === 'GET') {
-        fetchConfig.cache = 'no-store';
-      }
+      var fetchConfig = { method: options.method || 'GET', headers: headers };
+      if (options.body) fetchConfig.body = options.body;
+      if (fetchConfig.method === 'GET') fetchConfig.cache = 'no-store';
       res = await fetch(url, fetchConfig);
     } catch (err) {
       throw new SwingDoctorAPIError(0, 'Network request failed: ' + err.message, 'network_error');

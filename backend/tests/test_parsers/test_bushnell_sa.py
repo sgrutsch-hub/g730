@@ -149,11 +149,10 @@ class TestBushnellSAParser:
         assert shot.launch_direction_deg == Decimal("0.5")
 
     def test_attack_angle_up(self) -> None:
-        """'2.3 UP' with left_negative=False: UP grouped with R → -number.
-        Matches PWA behavior. Positive attack = hitting down, negative = hitting up."""
+        """'2.3 UP' → 2.3 (positive = hitting up, standard golf convention)."""
         sessions = self.parser.parse(SAMPLE_SA_CSV, "test.csv")
         shot = sessions[0].shots[0]
-        assert shot.attack_angle_deg == Decimal("-2.3")
+        assert shot.attack_angle_deg == Decimal("2.3")
 
     def test_club_path_out_to_in(self) -> None:
         """'2.1 O-I' should parse to -2.1 (out-to-in is negative)."""
@@ -235,3 +234,15 @@ class TestBushnellSAParser:
 """
         result = self.parser.parse(content, "zero.csv")
         assert result == []
+
+    def test_unparseable_date_falls_back_to_today(self) -> None:
+        """If the date column can't be parsed, fall back to today's date."""
+        content = """Shot Analysis
+7i,
+,Date,Time,Carry,unk1,Apex,Offline,unk2,Landing Angle,unk3,Ball Speed,Launch Angle,Launch Direction,Side Spin,Back Spin,Spin Rate,Spin Axis,unk4,Smash Factor,Attack Angle,Club Path,Face to Path,unk5,Dynamic Loft,unk6,unk7,unk8,Face Angle
+1,BADDATE,10:30:00,155.2,,82.1,3.4 L,,42.1,,107.2,22.5,1.2 L,168 R,5220 R,5224,3.1 R,,1.43,2.3 UP,2.1 O-I,1.3 L,,24.1,,,,0.8 L
+"""
+        result = self.parser.parse(content, "baddate.csv")
+        assert len(result) == 1
+        assert result[0].session_date == date.today()
+        assert len(result[0].shots) == 1
