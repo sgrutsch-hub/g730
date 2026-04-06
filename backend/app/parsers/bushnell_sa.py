@@ -54,6 +54,12 @@ def _num(val: str | None) -> Decimal | None:
         return None
 
 
+def _num_positive(val: str | None) -> Decimal | None:
+    """Parse as number, but return None for zero or negative (physically impossible values)."""
+    n = _num(val)
+    return n if n is not None and n > 0 else None
+
+
 def _parse_suffix_dir(val: str | None, left_negative: bool = True) -> Decimal | None:
     """
     Parse Bushnell Shot Analysis suffix direction notation.
@@ -195,7 +201,7 @@ class BushnellShotAnalysisParser(BaseParser):
                         _parse_suffix_dir(cols[16], left_negative=False)
                         if len(cols) > 16 else None
                     ),
-                    club_speed_mph=_num(cols[17]) if len(cols) > 17 else None,
+                    club_speed_mph=_num_positive(cols[17]) if len(cols) > 17 else None,
                     smash_factor=_num(cols[19]) if len(cols) > 19 else None,
                     attack_angle_deg=(
                         _parse_suffix_dir(cols[20])

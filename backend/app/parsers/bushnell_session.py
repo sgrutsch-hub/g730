@@ -53,6 +53,12 @@ def _num(val: str | None) -> Decimal | None:
         return None
 
 
+def _num_positive(val: str | None) -> Decimal | None:
+    """Parse as number, but return None for zero or negative (physically impossible values)."""
+    n = _num(val)
+    return n if n is not None and n > 0 else None
+
+
 def _to_int(val: Decimal | None) -> int | None:
     if val is None:
         return None
@@ -137,7 +143,7 @@ class BushnellSessionParser(BaseParser):
                 back_spin_rpm=_to_int(_num(cols[7])),
                 spin_rate_rpm=_to_int(_num(cols[8])),
                 spin_axis_deg=_num(cols[9]),
-                club_speed_mph=_num(cols[10]),
+                club_speed_mph=_num_positive(cols[10]),
                 smash_factor=_num(cols[12]),
                 attack_angle_deg=_num(cols[13]),
                 club_path_deg=_num(cols[14]),
