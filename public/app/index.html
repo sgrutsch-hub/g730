@@ -759,6 +759,8 @@ function buildDataFromShots(allShots, sessionList) {
     const paths = f.filter(s => s.clubPath != null).map(s => s.clubPath);
     const landings = f.filter(s => s.landingAngle != null).map(s => s.landingAngle);
     const offlines = f.filter(s => s.offline != null).map(s => s.offline);
+    const clubSpeeds = f.filter(s => s.clubSpeed != null).map(s => s.clubSpeed);
+    const apexes = f.filter(s => s.apex != null).map(s => s.apex);
     const ballType = f[0]?.ballType || 'tp5x';
     sessions.push({ date, club, shotCount: f.length, ballType,
       ballSpeedAvg: avg(speeds), ballSpeedStd: std(speeds),
@@ -766,6 +768,7 @@ function buildDataFromShots(allShots, sessionList) {
       carryMax: carries.length ? Math.max(...carries) : 0, carryMed: median(carries),
       launchAngleAvg: avg(launches), attackAngleAvg: avg(attacks), faceAngleAvg: avg(faces),
       clubPathAvg: avg(paths), landingAngleAvg: avg(landings), spinRateAvg: avg(spins),
+      clubSpeedAvg: clubSpeeds.length ? avg(clubSpeeds) : null, apexAvg: apexes.length ? avg(apexes) : null,
       offlineAvg: avg(offlines), offlineAbsAvg: offlines.length ? avg(offlines.map(Math.abs)) : 0,
       leftPct: offlines.length ? offlines.filter(o => o < 0).length / offlines.length : 0,
       rightPct: offlines.length ? offlines.filter(o => o > 0).length / offlines.length : 0,
@@ -1286,12 +1289,13 @@ function updateScatterChart(allShots) {
 function updateSessionTable(sessions) {
   const sess=sessions.filter(s=>s.club===selectedClub).sort((a,b)=>a.date.localeCompare(b.date));
   const sign = (v, dec) => v != null && !isNaN(v) ? (v >= 0 ? '+' : '') + v.toFixed(dec) : '--';
-  document.getElementById('sessionTable').innerHTML=`<tr><th style="text-align:left">Date</th><th>Carry</th><th>Std</th><th>Speed</th><th>Spin</th><th>Launch</th><th>Land</th><th>AoA</th><th>Path</th><th>Shots</th></tr>
+  document.getElementById('sessionTable').innerHTML=`<tr><th style="text-align:left">Date</th><th>Carry</th><th>Std</th><th>Ball Spd</th><th>Club Spd</th><th>Spin</th><th>Launch</th><th>Apex</th><th>AoA</th><th>Path</th><th>Offline</th><th>Shots</th></tr>
     ${sess.map(s=>`<tr><td>${s.date.replace(/-\d{4}$/,'')}</td>
     <td style="font-weight:600;color:${GREEN}">${s.carryAvg.toFixed(1)}</td><td>${s.carryStd.toFixed(1)}</td>
-    <td>${s.ballSpeedAvg.toFixed(1)}</td><td>${Math.round(s.spinRateAvg)}</td>
-    <td>${s.launchAngleAvg.toFixed(1)}&deg;</td><td>${s.landingAngleAvg.toFixed(1)}&deg;</td>
+    <td>${s.ballSpeedAvg.toFixed(1)}</td><td>${s.clubSpeedAvg ? s.clubSpeedAvg.toFixed(0) : '--'}</td><td>${Math.round(s.spinRateAvg)}</td>
+    <td>${s.launchAngleAvg.toFixed(1)}&deg;</td><td>${s.apexAvg ? s.apexAvg.toFixed(0) : '--'}</td>
     <td style="color:${TEXT2}">${sign(s.attackAngleAvg,1)}&deg;</td><td style="color:${TEXT2}">${sign(s.clubPathAvg,1)}&deg;</td>
+    <td style="color:${TEXT2}">${s.offlineAbsAvg != null ? s.offlineAbsAvg.toFixed(1) : '--'}</td>
     <td style="color:${TEXT3}">${s.shotCount}</td></tr>`).join('')}`;
 }
 
