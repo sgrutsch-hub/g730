@@ -1507,110 +1507,112 @@ function saveWallpaper() {
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
 
-  // Subtle border card area
-  const cardX = 60, cardW = W - 120;
-  const cardTop = 620; // leave room for clock widget
-  ctx.fillStyle = '#161b2288';
-  ctx.beginPath();
-  ctx.roundRect(cardX, cardTop, cardW, H - cardTop - 200, 24);
-  ctx.fill();
-  ctx.strokeStyle = '#30363d';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.roundRect(cardX, cardTop, cardW, H - cardTop - 200, 24);
-  ctx.stroke();
+  // Layout constants
+  const pad = 40;
+  const cardX = pad, cardW = W - pad * 2;
+  const cardTop = 580;
+  const numClubs = bag.length;
+  const rowH = Math.min(72, Math.floor((H - cardTop - 280) / (numClubs + 3)));
+
+  // Card background
+  ctx.fillStyle = '#161b2266';
+  const cardH = rowH * (numClubs + 2.5) + 160;
+  ctx.beginPath(); ctx.roundRect(cardX, cardTop, cardW, cardH, 20); ctx.fill();
+  ctx.strokeStyle = '#30363d88'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.roundRect(cardX, cardTop, cardW, cardH, 20); ctx.stroke();
 
   // Title
-  let y = cardTop + 60;
+  let y = cardTop + 50;
   ctx.textAlign = 'center';
-  ctx.font = '700 52px -apple-system, SF Pro Display, sans-serif';
+  ctx.font = '700 44px -apple-system, SF Pro Display, sans-serif';
   ctx.fillStyle = '#e6edf3';
   ctx.fillText(`${name}'s Yardage Card`, W / 2, y);
-
-  y += 40;
-  ctx.font = '400 28px -apple-system, SF Pro Text, sans-serif';
+  y += 34;
+  ctx.font = '400 24px -apple-system, SF Pro Text, sans-serif';
   ctx.fillStyle = '#6e7681';
   const dates = [...new Set(fs.map(s => s.date))].sort();
-  ctx.fillText(dates.length ? `${dates[0]} to ${dates[dates.length-1]}` : '', W / 2, y);
+  ctx.fillText(dates.length ? `${dates[0]} \u2013 ${dates[dates.length-1]}` : '', W / 2, y);
 
-  // Column headers
-  y += 80;
-  const cols = [
-    { x: cardX + 60, align: 'left', label: 'CLUB' },
-    { x: cardX + cardW * 0.32, align: 'right', label: 'STOCK' },
-    { x: cardX + cardW * 0.48, align: 'right', label: 'TOTAL' },
-    { x: cardX + cardW * 0.72, align: 'right', label: 'TOP 10%' },
-    { x: cardX + cardW * 0.90, align: 'right', label: 'TOTAL' },
-  ];
+  // Column positions — evenly spaced across full width
+  const c0 = cardX + 50;                   // Club (left-aligned)
+  const c1 = cardX + cardW * 0.30;         // Stock carry
+  const c2 = cardX + cardW * 0.445;        // Stock total
+  const c3 = cardX + cardW * 0.66;         // Top 10% carry
+  const c4 = cardX + cardW * 0.82;         // Top 10% total
 
-  // Sub headers for stock/top grouping
-  ctx.font = '600 22px -apple-system, SF Pro Text, sans-serif';
-  ctx.fillStyle = '#2ea99a';
+  // Group headers
+  y += 50;
+  ctx.font = '700 22px -apple-system, SF Pro Text, sans-serif';
   ctx.textAlign = 'center';
-  ctx.fillText('STOCK SHOT', cardX + cardW * 0.40, y - 30);
+  ctx.fillStyle = '#2ea99a';
+  ctx.fillText('STOCK SHOT', (c1 + c2) / 2, y);
   ctx.fillStyle = '#d29922';
-  ctx.fillText('TOP 10%', cardX + cardW * 0.81, y - 30);
+  ctx.fillText('TOP 10%', (c3 + c4) / 2, y);
 
-  ctx.font = '600 24px -apple-system, SF Pro Text, sans-serif';
+  // Column sub-headers
+  y += 32;
+  ctx.font = '600 20px -apple-system, SF Pro Text, sans-serif';
   ctx.fillStyle = '#6e7681';
-  cols.forEach(c => { ctx.textAlign = c.align; ctx.fillText(c.label, c.x, y); });
+  ctx.textAlign = 'left'; ctx.fillText('CLUB', c0, y);
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#2ea99aaa'; ctx.fillText('CARRY', c1, y); ctx.fillText('TOTAL', c2, y);
+  ctx.fillStyle = '#d29922aa'; ctx.fillText('CARRY', c3, y); ctx.fillText('TOTAL', c4, y);
 
   // Divider
-  y += 16;
-  ctx.strokeStyle = '#30363d';
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(cardX + 40, y); ctx.lineTo(cardX + cardW - 40, y); ctx.stroke();
-
-  // Rows
-  const rowH = 72;
   y += 12;
+  ctx.strokeStyle = '#30363d'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(c0, y); ctx.lineTo(cardX + cardW - 50, y); ctx.stroke();
+
+  // Data rows
+  const fontSize = Math.min(36, Math.max(28, rowH - 30));
+  const smallFont = Math.round(fontSize * 0.82);
 
   bag.forEach((s, i) => {
     y += rowH;
     const tr = trimmed[s.club] || {};
     const isEst = s.estimated;
-    const alpha = isEst ? '66' : 'ff';
+    const a = isEst ? '55' : '';
 
-    // Club name
+    // Club
     ctx.textAlign = 'left';
-    ctx.font = `700 36px -apple-system, SF Pro Display, sans-serif`;
-    ctx.fillStyle = '#e6edf3' + alpha;
-    ctx.fillText(s.club + (isEst ? ' *' : ''), cols[0].x, y);
+    ctx.font = `700 ${fontSize}px -apple-system, SF Pro Display, sans-serif`;
+    ctx.fillStyle = isEst ? '#e6edf355' : '#e6edf3';
+    ctx.fillText(s.club, c0, y);
 
-    // Stock carry
     ctx.textAlign = 'right';
-    ctx.font = `700 38px -apple-system, SF Pro Display, sans-serif`;
-    ctx.fillStyle = '#2ea99a' + alpha;
-    ctx.fillText(tr.stockCarry != null ? tr.stockCarry.toFixed(0) : '--', cols[1].x, y);
 
-    // Stock total
-    ctx.font = `400 32px -apple-system, SF Pro Text, sans-serif`;
-    ctx.fillStyle = '#2ea99a88';
-    ctx.fillText(tr.stockTotal != null ? tr.stockTotal.toFixed(0) : '--', cols[2].x, y);
+    // Stock carry (bold)
+    ctx.font = `700 ${fontSize}px -apple-system, SF Pro Display, sans-serif`;
+    ctx.fillStyle = isEst ? '#2ea99a55' : '#2ea99a';
+    ctx.fillText(tr.stockCarry != null ? tr.stockCarry.toFixed(0) : '--', c1, y);
 
-    // Top 10% carry
-    ctx.font = `700 38px -apple-system, SF Pro Display, sans-serif`;
-    ctx.fillStyle = '#d29922' + alpha;
-    ctx.fillText(tr.topCarry != null ? tr.topCarry.toFixed(0) : '--', cols[3].x, y);
+    // Stock total (lighter)
+    ctx.font = `400 ${smallFont}px -apple-system, SF Pro Text, sans-serif`;
+    ctx.fillStyle = '#2ea99a77';
+    ctx.fillText(tr.stockTotal != null ? tr.stockTotal.toFixed(0) : '--', c2, y);
 
-    // Top 10% total
-    ctx.font = `400 32px -apple-system, SF Pro Text, sans-serif`;
-    ctx.fillStyle = '#d2992288';
-    ctx.fillText(tr.topTotal != null ? tr.topTotal.toFixed(0) : '--', cols[4].x, y);
+    // Top 10% carry (bold)
+    ctx.font = `700 ${fontSize}px -apple-system, SF Pro Display, sans-serif`;
+    ctx.fillStyle = isEst ? '#d2992255' : '#d29922';
+    ctx.fillText(tr.topCarry != null ? tr.topCarry.toFixed(0) : '--', c3, y);
 
-    // Row divider
+    // Top 10% total (lighter)
+    ctx.font = `400 ${smallFont}px -apple-system, SF Pro Text, sans-serif`;
+    ctx.fillStyle = '#d2992277';
+    ctx.fillText(tr.topTotal != null ? tr.topTotal.toFixed(0) : '--', c4, y);
+
+    // Row separator
     if (i < bag.length - 1) {
-      ctx.strokeStyle = '#30363d44';
-      ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.moveTo(cardX + 40, y + 20); ctx.lineTo(cardX + cardW - 40, y + 20); ctx.stroke();
+      ctx.strokeStyle = '#30363d33'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(c0, y + rowH * 0.38); ctx.lineTo(cardX + cardW - 50, y + rowH * 0.38); ctx.stroke();
     }
   });
 
   // Footer
   ctx.textAlign = 'center';
-  ctx.font = '400 24px -apple-system, SF Pro Text, sans-serif';
-  ctx.fillStyle = '#6e768166';
-  ctx.fillText('swing.doctor', W / 2, H - 120);
+  ctx.font = '400 22px -apple-system, SF Pro Text, sans-serif';
+  ctx.fillStyle = '#6e768144';
+  ctx.fillText('swing.doctor', W / 2, H - 100);
 
   // Download
   const link = document.createElement('a');
