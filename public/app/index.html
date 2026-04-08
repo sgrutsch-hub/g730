@@ -1101,23 +1101,24 @@ function toggleStockShot() {
 
 function applyStockTrim(shots) {
   if (stockShotMode !== 'stock') return shots;
-  // Group by club, compute mean carry, keep only ±15% from mean
+  // Group by club, compute median carry, keep only ±15% from median
   const byClub = {};
   shots.forEach(s => {
     if (s.carry != null && s.carry > 0) {
       (byClub[s.club] = byClub[s.club] || []).push(s);
     }
   });
-  const meanCarry = {};
+  const medianCarry = {};
   for (const [club, clubShots] of Object.entries(byClub)) {
-    const carries = clubShots.map(s => s.carry);
-    meanCarry[club] = carries.reduce((a, b) => a + b, 0) / carries.length;
+    const sorted = clubShots.map(s => s.carry).sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    medianCarry[club] = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
   }
   return shots.filter(s => {
     if (s.carry == null || s.carry <= 0) return false;
-    const mean = meanCarry[s.club];
-    if (!mean) return false;
-    const lo = mean * 0.85, hi = mean * 1.15;
+    const med = medianCarry[s.club];
+    if (!med) return false;
+    const lo = med * 0.85, hi = med * 1.15;
     return s.carry >= lo && s.carry <= hi;
   });
 }
