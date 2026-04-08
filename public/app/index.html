@@ -320,9 +320,10 @@
       <div class="filter-divider"></div>
       <div class="filter-group" style="align-items:center">
         <span class="filter-label">Trim</span>
-        <div class="stock-toggle" id="stockToggle" onclick="toggleStockShot()">
-          <div class="stock-toggle-option active" data-mode="all">All Data</div>
-          <div class="stock-toggle-option" data-mode="stock">Stock Shot</div>
+        <div class="stock-toggle" id="stockToggle">
+          <div class="stock-toggle-option active" data-mode="all" onclick="setTrimMode('all')">All Data</div>
+          <div class="stock-toggle-option" data-mode="stock" onclick="setTrimMode('stock')">Stock Shot</div>
+          <div class="stock-toggle-option" data-mode="top10" onclick="setTrimMode('top10')">Top 10%</div>
         </div>
       </div>
     </div>
@@ -1088,38 +1089,56 @@ function buildDateFilter() {
 function onDateFilterChange() { dateFilterMode = document.getElementById('dateFilter').value; updateDashboard(); }
 
 // ─── Stock Shot Trim ───
-let stockShotMode = 'all'; // 'all' or 'stock'
+let stockShotMode = 'all'; // 'all', 'stock', or 'top10'
 
-function toggleStockShot() {
-  stockShotMode = stockShotMode === 'all' ? 'stock' : 'all';
+function setTrimMode(mode) {
+  stockShotMode = mode;
   document.querySelectorAll('.stock-toggle-option').forEach(el => {
     el.classList.toggle('active', el.dataset.mode === stockShotMode);
   });
-  _fullBagCache = null; // bust cache
+  _fullBagCache = null;
   updateDashboard();
 }
 
 function applyStockTrim(shots) {
-  if (stockShotMode !== 'stock') return shots;
-  // Group by club, compute median carry, keep only ±15% from median
+  if (stockShotMode === 'all') return shots;
+
+  // Group by club — only shots with valid carry
   const byClub = {};
   shots.forEach(s => {
     if (s.carry != null && s.carry > 0) {
       (byClub[s.club] = byClub[s.club] || []).push(s);
     }
   });
-  const medianCarry = {};
+
+  if (stockShotMode === 'top10') {
+    // Keep only top 10% by carry per club
+    const kept = new Set();
+    for (const [club, clubShots] of Object.entries(byClub)) {
+      const sorted = [...clubShots].sort((a, b) => b.carry - a.carry);
+      const n = Math.max(1, Math.ceil(sorted.length * 0.10));
+      sorted.slice(0, n).forEach(s => kept.add(s));
+    }
+    return shots.filter(s => kept.has(s));
+  }
+
+  // Stock shot: IQR-based trim — keep shots between Q1 and Q3 (the middle 50%)
+  // This is tighter than ±15% of median and naturally excludes thin/fat shots
+  const bounds = {};
   for (const [club, clubShots] of Object.entries(byClub)) {
     const sorted = clubShots.map(s => s.carry).sort((a, b) => a - b);
-    const mid = Math.floor(sorted.length / 2);
-    medianCarry[club] = sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+    const n = sorted.length;
+    const q1 = sorted[Math.floor(n * 0.25)];
+    const q3 = sorted[Math.floor(n * 0.75)];
+    const iqr = q3 - q1;
+    // Keep within Q1 - 0.5*IQR to Q3 + 0.5*IQR (tighter than standard 1.5*IQR)
+    bounds[club] = { lo: q1 - 0.5 * iqr, hi: q3 + 0.5 * iqr };
   }
   return shots.filter(s => {
     if (s.carry == null || s.carry <= 0) return false;
-    const med = medianCarry[s.club];
-    if (!med) return false;
-    const lo = med * 0.85, hi = med * 1.15;
-    return s.carry >= lo && s.carry <= hi;
+    const b = bounds[s.club];
+    if (!b) return false;
+    return s.carry >= b.lo && s.carry <= b.hi;
   });
 }
 
@@ -1146,7 +1165,7 @@ function updateDashboard() {
   const fs = getFilteredShots(), fss = getFilteredSessions();
   const active = fs.filter(s => s.filtered);
   const label = dateFilterMode === 'all' ? 'all time' : dateFilterMode.startsWith('month:') ? dateFilterMode.split(':')[1] : dateFilterMode.split(':')[1];
-  const trimLabel = stockShotMode === 'stock' ? ' \u00b7 stock shot trim' : '';
+  const trimLabel = stockShotMode === 'stock' ? ' \u00b7 stock shot' : stockShotMode === 'top10' ? ' \u00b7 top 10%' : '';
   document.getElementById('subtitle').textContent = `${active.length} shots \u00b7 ${fss.length} sessions \u00b7 ${label} \u00b7 ${DATA.fileCount} files${trimLabel}`;
   updateKPIs(fs);
 
