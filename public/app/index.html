@@ -62,6 +62,11 @@
     -webkit-appearance: none; appearance: none; cursor: pointer;
   }
   .filter-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+  .stock-toggle { display: flex; border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+  .stock-toggle-option { padding: 5px 10px; font-size: 11px; font-weight: 600; cursor: pointer;
+    background: var(--bg3); color: var(--text3); transition: all 0.15s; user-select: none; white-space: nowrap; }
+  .stock-toggle-option.active { background: var(--accent2); color: #fff; }
+  .stock-toggle-option:not(.active):hover { background: var(--bg2); color: var(--text2); }
 
   .kpi-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
   .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 12px; text-align: center; border-top: 2px solid var(--border); }
@@ -311,6 +316,14 @@
       <div class="filter-group">
         <span class="filter-label">Time</span>
         <select class="filter-select" id="dateFilter" onchange="onDateFilterChange()"></select>
+      </div>
+      <div class="filter-divider"></div>
+      <div class="filter-group" style="align-items:center">
+        <span class="filter-label">Trim</span>
+        <div class="stock-toggle" id="stockToggle" onclick="toggleStockShot()">
+          <div class="stock-toggle-option active" data-mode="all">All Data</div>
+          <div class="stock-toggle-option" data-mode="stock">Stock Shot</div>
+        </div>
       </div>
     </div>
 
@@ -1048,7 +1061,9 @@ function applyDateFilter(items) {
 }
 function getFilteredShots() {
   if (!DATA) return [];
-  return applyDateFilter(DATA.shots);
+  let shots = applyDateFilter(DATA.shots);
+  shots = applyStockTrim(shots);
+  return shots;
 }
 function getFilteredSessions() {
   if (!DATA) return [];
@@ -1071,6 +1086,41 @@ function buildDateFilter() {
   select.value = dateFilterMode;
 }
 function onDateFilterChange() { dateFilterMode = document.getElementById('dateFilter').value; updateDashboard(); }
+
+// ─── Stock Shot Trim ───
+let stockShotMode = 'all'; // 'all' or 'stock'
+
+function toggleStockShot() {
+  stockShotMode = stockShotMode === 'all' ? 'stock' : 'all';
+  document.querySelectorAll('.stock-toggle-option').forEach(el => {
+    el.classList.toggle('active', el.dataset.mode === stockShotMode);
+  });
+  _fullBagCache = null; // bust cache
+  updateDashboard();
+}
+
+function applyStockTrim(shots) {
+  if (stockShotMode !== 'stock') return shots;
+  // Group by club, compute mean carry, keep only ±15% from mean
+  const byClub = {};
+  shots.forEach(s => {
+    if (s.carry != null && s.carry > 0) {
+      (byClub[s.club] = byClub[s.club] || []).push(s);
+    }
+  });
+  const meanCarry = {};
+  for (const [club, clubShots] of Object.entries(byClub)) {
+    const carries = clubShots.map(s => s.carry);
+    meanCarry[club] = carries.reduce((a, b) => a + b, 0) / carries.length;
+  }
+  return shots.filter(s => {
+    if (s.carry == null || s.carry <= 0) return false;
+    const mean = meanCarry[s.club];
+    if (!mean) return false;
+    const lo = mean * 0.85, hi = mean * 1.15;
+    return s.carry >= lo && s.carry <= hi;
+  });
+}
 
 function buildClubSelector() {
   const clubs = [...new Set(DATA.clubSummaries.map(c => c.club))];
@@ -1095,7 +1145,8 @@ function updateDashboard() {
   const fs = getFilteredShots(), fss = getFilteredSessions();
   const active = fs.filter(s => s.filtered);
   const label = dateFilterMode === 'all' ? 'all time' : dateFilterMode.startsWith('month:') ? dateFilterMode.split(':')[1] : dateFilterMode.split(':')[1];
-  document.getElementById('subtitle').textContent = `${active.length} shots \u00b7 ${fss.length} sessions \u00b7 ${label} \u00b7 ${DATA.fileCount} files`;
+  const trimLabel = stockShotMode === 'stock' ? ' \u00b7 stock shot trim' : '';
+  document.getElementById('subtitle').textContent = `${active.length} shots \u00b7 ${fss.length} sessions \u00b7 ${label} \u00b7 ${DATA.fileCount} files${trimLabel}`;
   updateKPIs(fs);
 
   // Only render the active tab's charts/tables to avoid unnecessary DOM work
