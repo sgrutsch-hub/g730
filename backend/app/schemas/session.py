@@ -78,10 +78,20 @@ class ShotResponse(BaseModel):
 
     # Computed
     theoretical_carry: Decimal | None
+    shot_score: Decimal | None
     is_filtered: bool
     ball_type: str | None
 
     model_config = {"from_attributes": True}
+
+
+class DateWarning(BaseModel):
+    """Returned when upload file date doesn't match today."""
+
+    status: str = "date_warning"
+    parsed_date: date
+    message: str
+    sessions_preview: list[dict] = []
 
 
 class SessionListResponse(BaseModel):

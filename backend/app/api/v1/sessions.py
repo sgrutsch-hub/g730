@@ -1,18 +1,22 @@
 from __future__ import annotations
 
 """
-Session routes — upload, list, detail, delete.
+Session routes — upload, list, detail, delete, export.
 
 The upload endpoint is the gateway for all data ingestion.
-It auto-detects the CSV format, parses shots, applies the
-bottom-N% trim, and stores everything in a single transaction.
+It auto-detects the CSV format, parses shots, deduplicates at
+the shot level, merges into existing sessions when appropriate,
+and applies processing (trim, theoretical carry, shot score).
 """
 
+import csv
 import hashlib
+import io
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 
 from fastapi import APIRouter, Depends, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -27,32 +31,40 @@ from app.models.shot import Shot
 from app.models.user import User
 from app.parsers import detect_and_parse
 from app.schemas.session import (
+    DateWarning,
     SessionDetail,
     SessionListResponse,
     SessionResponse,
     SessionUpdate,
+)
+from app.services.dedup import (
+    find_duplicate_shots,
+    find_existing_session_for_date,
+    get_max_shot_index,
 )
 from app.services.processing import process_session_shots
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 
-@router.post("/upload", response_model=list[SessionResponse], status_code=201)
+@router.post("/upload", status_code=201)
 async def upload_csv(
     file: UploadFile,
     profile_id: uuid.UUID = Query(..., description="Target profile for the imported data"),
     ball_type: str | None = Query(default=None, description="Ball type for this session"),
+    override_date: date | None = Query(default=None, description="Override parsed date if it differs from actual session date"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[Session]:
+) -> list[SessionResponse] | DateWarning:
     """
     Upload a CSV file from any supported launch monitor.
 
-    The file format is auto-detected. A single file may contain
-    multiple sessions (e.g., Bushnell DrivingRange format groups
-    shots by date). Each session is stored separately.
+    The file format is auto-detected. Shots are deduplicated at the
+    shot level (date + club + ball_speed). New shots are merged into
+    existing sessions for the same date.
 
-    Returns the created session(s).
+    If the parsed date differs from today and override_date is not set,
+    returns a date_warning response for the frontend to confirm.
     """
     # Verify profile ownership
     result = await db.execute(
@@ -72,28 +84,41 @@ async def upload_csv(
         except UnicodeDecodeError as e:
             raise ValidationError("Unable to read file — unsupported encoding") from e
 
-    # Strip BOM if present
     if text.startswith("\ufeff"):
         text = text[1:]
 
     filename = file.filename or "unknown.csv"
 
-    # Content-hash duplicate check: reject the entire file if already imported
-    content_hash = hashlib.sha256(text.encode()).hexdigest()
-    existing_hash = await db.execute(
-        select(Session).where(
-            Session.profile_id == profile_id,
-            Session.content_hash == content_hash,
-        )
-    )
-    if existing_hash.scalar_one_or_none():
-        raise ValidationError("This file has already been imported (duplicate content detected)")
-
     # Auto-detect format and parse
     parsed_sessions = detect_and_parse(text, filename)
-
     if not parsed_sessions:
         raise ValidationError("No shot data found in file")
+
+    # Apply date override if provided
+    if override_date:
+        for parsed in parsed_sessions:
+            parsed.session_date = override_date
+
+    # Date mismatch warning: if parsed date != today, ask user to confirm
+    today = datetime.now(timezone.utc).date()
+    parsed_dates = {p.session_date for p in parsed_sessions}
+    if not override_date and parsed_dates and today not in parsed_dates:
+        previews = []
+        for p in parsed_sessions:
+            clubs = {}
+            for s in p.shots:
+                clubs[s.club_name] = clubs.get(s.club_name, 0) + 1
+            previews.append({
+                "date": str(p.session_date),
+                "shot_count": len(p.shots),
+                "clubs": list(clubs.keys()),
+            })
+        return DateWarning(
+            parsed_date=list(parsed_dates)[0],
+            message=f"File contains data from {', '.join(str(d) for d in sorted(parsed_dates))}, not today. "
+                    f"Re-upload with the correct date to confirm.",
+            sessions_preview=previews,
+        )
 
     # Check session count limits for free tier
     effective_tier = user.subscription_override or user.subscription_tier
@@ -101,48 +126,71 @@ async def upload_csv(
         existing_count = await db.scalar(
             select(func.count()).select_from(Session).where(Session.profile_id == profile_id)
         )
-        if (existing_count or 0) + len(parsed_sessions) > 3:
+        new_dates = set()
+        for p in parsed_sessions:
+            existing_for_date = await find_existing_session_for_date(db, profile_id, p.session_date)
+            if not existing_for_date:
+                new_dates.add(p.session_date)
+        if (existing_count or 0) + len(new_dates) > 3:
             raise ValidationError(
                 f"Free tier allows 3 sessions. You have {existing_count} and are uploading "
-                f"{len(parsed_sessions)}. Upgrade to Pro for unlimited sessions."
+                f"{len(new_dates)} new date(s). Upgrade to Pro for unlimited sessions."
             )
 
+    content_hash = hashlib.sha256(text.encode()).hexdigest()
     created_sessions: list[Session] = []
+    sessions_to_process: list[Session] = []
+    total_new_shots = 0
 
     for parsed in parsed_sessions:
-        # Check for duplicate
-        existing = await db.execute(
-            select(Session).where(
-                Session.profile_id == profile_id,
-                Session.source_file == parsed.source_file,
+        session_date = parsed.session_date
+
+        # Find existing shots for dedup
+        existing_fps = await find_duplicate_shots(db, profile_id, session_date)
+
+        # Filter out duplicate shots
+        new_shots = []
+        for shot_data in parsed.shots:
+            fp = (shot_data.club_name, shot_data.ball_speed_mph)
+            if fp not in existing_fps:
+                new_shots.append(shot_data)
+                existing_fps.add(fp)  # Prevent intra-file dupes too
+
+        if not new_shots:
+            continue
+
+        # Find or create session for this date
+        session = await find_existing_session_for_date(db, profile_id, session_date)
+
+        if session:
+            # Merge into existing session
+            start_idx = await get_max_shot_index(db, session.id) + 1
+        else:
+            # Create new session
+            session = Session(
+                profile_id=profile_id,
+                source_file=f"{filename}_{session_date.isoformat()}",
+                source_format=parsed.source_format,
+                content_hash=content_hash,
+                raw_csv=text if len(text) < 500_000 else None,
+                session_date=session_date,
+                ball_type=ball_type or parsed.ball_type,
+                shot_count=0,
+                imported_at=func.now(),
             )
-        )
-        if existing.scalar_one_or_none():
-            continue  # Skip duplicates silently
+            db.add(session)
+            await db.flush()
+            start_idx = 0
+            created_sessions.append(session)
 
-        # Create session
-        session = Session(
-            profile_id=profile_id,
-            source_file=parsed.source_file,
-            source_format=parsed.source_format,
-            content_hash=content_hash,
-            raw_csv=text if len(text) < 500_000 else None,  # Don't store huge files
-            session_date=parsed.session_date,
-            ball_type=ball_type or parsed.ball_type,
-            shot_count=len(parsed.shots),
-            imported_at=func.now(),
-        )
-        db.add(session)
-        await db.flush()  # Get session.id
-
-        # Create shots
-        for idx, shot_data in enumerate(parsed.shots):
+        # Insert new shots
+        for i, shot_data in enumerate(new_shots):
             shot = Shot(
                 session_id=session.id,
                 profile_id=profile_id,
                 club_name=shot_data.club_name,
-                shot_index=idx,
-                shot_date=parsed.session_date,
+                shot_index=start_idx + i,
+                shot_date=session_date,
                 ball_speed_mph=shot_data.ball_speed_mph,
                 launch_angle_deg=shot_data.launch_angle_deg,
                 launch_direction_deg=shot_data.launch_direction_deg,
@@ -169,29 +217,31 @@ async def upload_csv(
             )
             db.add(shot)
 
-        created_sessions.append(session)
+        # Update shot count
+        session.shot_count = (session.shot_count or 0) + len(new_shots)
+        total_new_shots += len(new_shots)
+        sessions_to_process.append(session)
 
-    if not created_sessions:
-        raise ValidationError("All sessions in this file have already been imported")
+    if not sessions_to_process:
+        raise ValidationError("All shots in this file have already been imported (no new data)")
 
-    # Load club targets for target-based trim
+    # Load club targets for processing
     club_result = await db.execute(
         select(Club).where(Club.profile_id == profile_id, Club.target_carry.isnot(None))
     )
     club_targets = {c.name: c.target_carry for c in club_result.scalars()}
 
-    # Apply target-based trim (or bottom-20% fallback) and compute theoretical carry
+    # Process all affected sessions (trim, theoretical carry, shot score)
     await db.flush()
-    for session in created_sessions:
+    for session in sessions_to_process:
         await process_session_shots(db, session, club_targets=club_targets)
 
     await db.commit()
 
-    # Refresh to get final state
-    for session in created_sessions:
+    for session in sessions_to_process:
         await db.refresh(session)
 
-    return created_sessions
+    return [SessionResponse.model_validate(s) for s in sessions_to_process]
 
 
 @router.get("", response_model=SessionListResponse)
@@ -310,3 +360,81 @@ async def delete_session(
 
     await db.delete(session)
     await db.commit()
+
+
+@router.get("/export")
+async def export_csv(
+    profile_id: uuid.UUID = Query(...),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> StreamingResponse:
+    """Export all shots as a clean CSV for offline analysis."""
+    # Verify ownership
+    result = await db.execute(
+        select(Profile).where(Profile.id == profile_id, Profile.user_id == user.id)
+    )
+    if not result.scalar_one_or_none():
+        raise NotFoundError("Profile", str(profile_id))
+
+    # Fetch all shots with session info
+    result = await db.execute(
+        select(Shot, Session.source_format)
+        .join(Session, Shot.session_id == Session.id)
+        .where(Shot.profile_id == profile_id)
+        .order_by(Shot.shot_date, Shot.club_name, Shot.shot_index)
+    )
+    rows = result.all()
+
+    FORMAT_LABELS = {
+        "bushnell_dr": "Square LM",
+        "bushnell_sa": "Foresight",
+        "bushnell_session": "Foresight",
+        "seed_import": "Import",
+    }
+
+    def _fmt(val: object) -> str:
+        if val is None:
+            return ""
+        return str(round(float(val), 1)) if isinstance(val, (float, int)) or hasattr(val, "__float__") else str(val)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "Date", "Club", "Ball Speed", "Club Speed", "Smash Factor",
+        "Carry", "Total", "Offline", "Launch Angle", "Spin Rate",
+        "Spin Axis", "Attack Angle", "Club Path", "Face Angle",
+        "Dynamic Loft", "Apex", "Landing Angle", "Ball Type",
+        "Filtered", "Shot Score",
+    ])
+
+    for shot, source_format in rows:
+        writer.writerow([
+            shot.shot_date.strftime("%m-%d-%Y"),
+            shot.club_name,
+            _fmt(shot.ball_speed_mph),
+            _fmt(shot.club_speed_mph),
+            _fmt(shot.smash_factor),
+            _fmt(shot.carry_yards),
+            _fmt(shot.total_yards),
+            _fmt(shot.offline_yards),
+            _fmt(shot.launch_angle_deg),
+            _fmt(shot.spin_rate_rpm),
+            _fmt(shot.spin_axis_deg),
+            _fmt(shot.attack_angle_deg),
+            _fmt(shot.club_path_deg),
+            _fmt(shot.face_angle_deg),
+            _fmt(shot.dynamic_loft_deg),
+            _fmt(shot.apex_feet),
+            _fmt(shot.landing_angle_deg),
+            shot.ball_type or "",
+            "Yes" if shot.is_filtered else "No",
+            _fmt(shot.shot_score),
+        ])
+
+    today_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    output.seek(0)
+    return StreamingResponse(
+        output,
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="swing-doctor-export-{today_str}.csv"'},
+    )

@@ -1,0 +1,2 @@
+# Redirect root to the app
+/  /app/  302

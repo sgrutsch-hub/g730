@@ -17,6 +17,77 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.session import Session
 from app.models.shot import Shot
 
+# ── 15-handicap ideal parameters per club for shot scoring ──
+IRON_IDEALS: dict[str, dict[str, float]] = {
+    "5 Iron":  {"carry": 170, "offline_tol": 15, "ball_speed": 120, "launch_angle": 14.0, "spin_rate": 5000, "smash_factor": 1.38, "attack_angle": -2.5},
+    "6 Iron":  {"carry": 160, "offline_tol": 14, "ball_speed": 115, "launch_angle": 16.0, "spin_rate": 5500, "smash_factor": 1.37, "attack_angle": -3.0},
+    "7 Iron":  {"carry": 148, "offline_tol": 13, "ball_speed": 110, "launch_angle": 18.0, "spin_rate": 6200, "smash_factor": 1.36, "attack_angle": -3.5},
+    "8 Iron":  {"carry": 137, "offline_tol": 12, "ball_speed": 105, "launch_angle": 20.0, "spin_rate": 7000, "smash_factor": 1.34, "attack_angle": -4.0},
+    "9 Iron":  {"carry": 125, "offline_tol": 11, "ball_speed": 100, "launch_angle": 23.0, "spin_rate": 7800, "smash_factor": 1.33, "attack_angle": -4.3},
+    "PW":      {"carry": 115, "offline_tol": 10, "ball_speed": 94,  "launch_angle": 25.5, "spin_rate": 8600, "smash_factor": 1.31, "attack_angle": -4.5},
+    "GW":      {"carry": 105, "offline_tol": 9,  "ball_speed": 88,  "launch_angle": 28.0, "spin_rate": 9200, "smash_factor": 1.29, "attack_angle": -4.8},
+}
+
+# Scoring weights: carry + offline = 80%, everything else = 20%
+_SCORE_COMPONENTS = [
+    # (ideal_key, tolerance, weight, use_absolute)
+    ("carry",        30,   0.40, False),
+    ("offline_tol",  None,  0.40, True),   # tolerance = the ideal value itself
+    ("ball_speed",   20,   0.05, False),
+    ("launch_angle", 8,    0.05, False),
+    ("spin_rate",    2500, 0.04, False),
+    ("smash_factor", 0.15, 0.03, False),
+    ("attack_angle", 5,    0.03, False),
+]
+
+# Map ideal keys to Shot model attribute names
+_IDEAL_TO_SHOT_ATTR = {
+    "carry": "carry_yards",
+    "offline_tol": "offline_yards",
+    "ball_speed": "ball_speed_mph",
+    "launch_angle": "launch_angle_deg",
+    "spin_rate": "spin_rate_rpm",
+    "smash_factor": "smash_factor",
+    "attack_angle": "attack_angle_deg",
+}
+
+
+def _compute_shot_score(shot: Shot) -> Decimal | None:
+    """Compute weighted performance score (0-100) for an iron shot."""
+    ideal = IRON_IDEALS.get(shot.club_name)
+    if not ideal:
+        return None
+
+    total_score = 0.0
+    total_weight = 0.0
+
+    for ideal_key, tolerance, weight, use_abs in _SCORE_COMPONENTS:
+        attr = _IDEAL_TO_SHOT_ATTR[ideal_key]
+        val = getattr(shot, attr, None)
+        if val is None:
+            continue
+
+        actual = float(val)
+        if use_abs:
+            # Offline: ideal is 0, tolerance is the club's offline_tol value
+            actual = abs(actual)
+            ideal_val = 0.0
+            tol = float(ideal["offline_tol"])
+        else:
+            ideal_val = float(ideal[ideal_key])
+            tol = float(tolerance)
+
+        diff = abs(actual - ideal_val)
+        penalty = min(diff / tol, 1.0) if tol > 0 else (0.0 if diff == 0 else 1.0)
+        total_score += (1.0 - penalty) * weight
+        total_weight += weight
+
+    if total_weight <= 0:
+        return None
+
+    score = (total_score / total_weight) * 100
+    return Decimal(str(round(score, 1)))
+
 
 async def process_session_shots(
     db: AsyncSession,
@@ -82,6 +153,10 @@ async def process_session_shots(
             _apply_target_trim(club_shots, target)
         else:
             _apply_trim(club_shots, trim_pct)
+
+    # Step 4: Compute shot score for iron shots
+    for shot in shots:
+        shot.shot_score = _compute_shot_score(shot)
 
     # Update processed timestamp
     from sqlalchemy import func

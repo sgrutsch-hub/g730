@@ -102,6 +102,10 @@ class Shot(Base):
         Numeric(5, 1),
         comment="Physics-based carry estimate from ball speed + launch angle + spin",
     )
+    shot_score: Mapped[Decimal | None] = mapped_column(
+        Numeric(4, 1),
+        comment="Weighted performance score (0-100) for iron shots",
+    )
     is_filtered: Mapped[bool] = mapped_column(
         Boolean,
         default=True,

@@ -146,7 +146,7 @@
 
     let res;
     try {
-      var fetchConfig = { method: options.method || 'GET', headers: headers };
+      const fetchConfig = { method: options.method || 'GET', headers: headers };
       if (options.body) fetchConfig.body = options.body;
       if (fetchConfig.method === 'GET') fetchConfig.cache = 'no-store';
       res = await fetch(url, fetchConfig);
@@ -203,9 +203,9 @@
 
   function qs(params) {
     if (!params) return '';
-    var parts = [];
+    const parts = [];
     Object.keys(params).forEach(function (key) {
-      var v = params[key];
+      const v = params[key];
       if (v !== undefined && v !== null && v !== '') {
         parts.push(encodeURIComponent(key) + '=' + encodeURIComponent(v));
       }
@@ -215,7 +215,7 @@
 
   // ── Public API ─────────────────────────────────────────────────
 
-  var api = {};
+  const api = {};
 
   // -- Config --
 
@@ -238,7 +238,7 @@
    * @returns {Promise<object>} Token response
    */
   api.register = async function (email, password, displayName) {
-    var data = await apiFetch('/auth/register', {
+    const data = await apiFetch('/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -259,7 +259,7 @@
    * @returns {Promise<object>} Token response
    */
   api.login = async function (email, password) {
-    var data = await apiFetch('/auth/login', {
+    const data = await apiFetch('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: email, password: password }),
@@ -383,11 +383,14 @@
    * @returns {Promise<Array>} Created session(s)
    */
   api.uploadCSV = async function (profileId, file, options) {
-    var formData = new FormData();
+    const formData = new FormData();
     formData.append('file', file);
-    var queryParams = { profile_id: profileId };
+    const queryParams = { profile_id: profileId };
     if (options && options.ballType) {
       queryParams.ball_type = options.ballType;
+    }
+    if (options && options.overrideDate) {
+      queryParams.override_date = options.overrideDate;
     }
     // Don't set Content-Type — browser sets it with boundary for multipart
     return apiFetch('/sessions/upload' + qs(queryParams), {
@@ -397,13 +400,34 @@
   };
 
   /**
+   * Export all shot data as a clean CSV download.
+   * @param {string} profileId
+   */
+  api.exportCSV = async function (profileId) {
+    const token = await getValidToken();
+    const resp = await fetch(API_BASE + '/sessions/export' + qs({ profile_id: profileId }), {
+      headers: { 'Authorization': 'Bearer ' + token },
+    });
+    if (!resp.ok) throw new Error('Export failed');
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = resp.headers.get('Content-Disposition')?.split('filename=')[1]?.replace(/"/g, '') || 'swing-doctor-export.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
+
+  /**
    * List sessions for a profile.
    * @param {string} profileId
    * @param {object} [filters] — { dateFrom, dateTo, ballType, page, pageSize }
    * @returns {Promise<object>} { items, total, page, page_size, has_more }
    */
   api.getSessions = async function (profileId, filters) {
-    var params = { profile_id: profileId };
+    const params ={ profile_id: profileId };
     if (filters) {
       if (filters.dateFrom) params.date_from = filters.dateFrom;
       if (filters.dateTo) params.date_to = filters.dateTo;
@@ -448,6 +472,18 @@
 
   // -- Analytics --
 
+  /** Map common filter keys (camelCase) to API query params (snake_case). */
+  function analyticsParams(filters) {
+    const params ={};
+    if (filters) {
+      if (filters.club) params.club = filters.club;
+      if (filters.dateFrom) params.date_from = filters.dateFrom;
+      if (filters.dateTo) params.date_to = filters.dateTo;
+      if (filters.ballType) params.ball_type = filters.ballType;
+    }
+    return params;
+  }
+
   /**
    * Get the full analytics bundle for a profile.
    * @param {string} profileId
@@ -455,16 +491,7 @@
    * @returns {Promise<object>}
    */
   api.getFullAnalytics = async function (profileId, filters) {
-    var params = {};
-    if (filters) {
-      if (filters.club) params.club = filters.club;
-      if (filters.dateFrom) params.date_from = filters.dateFrom;
-      if (filters.dateTo) params.date_to = filters.dateTo;
-      if (filters.ballType) params.ball_type = filters.ballType;
-    }
-    return apiFetch('/analytics/profiles/' + profileId + '/summary' + qs(params), {
-      method: 'GET',
-    });
+    return apiFetch('/analytics/profiles/' + profileId + '/summary' + qs(analyticsParams(filters)), { method: 'GET' });
   };
 
   /**
@@ -474,16 +501,7 @@
    * @returns {Promise<Array>}
    */
   api.getClubSummaries = async function (profileId, filters) {
-    var params = {};
-    if (filters) {
-      if (filters.club) params.club = filters.club;
-      if (filters.dateFrom) params.date_from = filters.dateFrom;
-      if (filters.dateTo) params.date_to = filters.dateTo;
-      if (filters.ballType) params.ball_type = filters.ballType;
-    }
-    return apiFetch('/analytics/profiles/' + profileId + '/clubs' + qs(params), {
-      method: 'GET',
-    });
+    return apiFetch('/analytics/profiles/' + profileId + '/clubs' + qs(analyticsParams(filters)), { method: 'GET' });
   };
 
   /**
@@ -493,16 +511,7 @@
    * @returns {Promise<Array>}
    */
   api.getTrends = async function (profileId, filters) {
-    var params = {};
-    if (filters) {
-      if (filters.club) params.club = filters.club;
-      if (filters.dateFrom) params.date_from = filters.dateFrom;
-      if (filters.dateTo) params.date_to = filters.dateTo;
-      if (filters.ballType) params.ball_type = filters.ballType;
-    }
-    return apiFetch('/analytics/profiles/' + profileId + '/trends' + qs(params), {
-      method: 'GET',
-    });
+    return apiFetch('/analytics/profiles/' + profileId + '/trends' + qs(analyticsParams(filters)), { method: 'GET' });
   };
 
   /**
@@ -512,7 +521,7 @@
    * @returns {Promise<Array>}
    */
   api.getImprovement = async function (profileId, options) {
-    var params = {};
+    const params ={};
     if (options) {
       if (options.club) params.club = options.club;
       if (options.days) params.days = options.days;
@@ -542,8 +551,8 @@
    * @returns {Promise<object>}
    */
   api.getAIAnalysis = async function (profileId, options) {
-    var params = {};
-    var bodyObj = null;
+    const params ={};
+    let bodyObj = null;
     if (options) {
       if (options.club) params.club = options.club;
       if (options.dateFrom) params.date_from = options.dateFrom;
@@ -553,7 +562,7 @@
         bodyObj = { additional_context: options.additionalContext };
       }
     }
-    var fetchOpts = { method: 'POST' };
+    const fetchOpts = { method: 'POST' };
     if (bodyObj) {
       fetchOpts.headers = { 'Content-Type': 'application/json' };
       fetchOpts.body = JSON.stringify(bodyObj);
@@ -578,7 +587,7 @@
     };
   };
 
-  var _authListeners = [];
+  let _authListeners = [];
 
   function _notifyAuth(isLoggedIn) {
     _authListeners.forEach(function (cb) {
@@ -587,21 +596,21 @@
   }
 
   // Wrap login/register/logout to fire auth events
-  var _origLogin = api.login;
+  const _origLogin = api.login;
   api.login = async function () {
-    var result = await _origLogin.apply(null, arguments);
+    const result = await _origLogin.apply(null, arguments);
     _notifyAuth(true);
     return result;
   };
 
-  var _origRegister = api.register;
+  const _origRegister = api.register;
   api.register = async function () {
-    var result = await _origRegister.apply(null, arguments);
+    const result = await _origRegister.apply(null, arguments);
     _notifyAuth(true);
     return result;
   };
 
-  var _origLogout = api.logout;
+  const _origLogout = api.logout;
   api.logout = function () {
     _origLogout();
     _notifyAuth(false);

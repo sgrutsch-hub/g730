@@ -364,7 +364,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
             Refresh
           </button>
-          <button class="hdr-btn" onclick="exportData()" style="flex:1;justify-content:center">
+          <button class="hdr-btn" onclick="handleExportData()" style="flex:1;justify-content:center">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             Export CSV
           </button>
@@ -433,6 +433,8 @@ const TAB_LIST = ['overview','progress','yardage','dispersion','sessions','manag
 function avg(a) { return a.length ? a.reduce((s,v) => s+v, 0) / a.length : 0; }
 function std(a) { if (a.length < 2) return 0; const m = avg(a); return Math.sqrt(a.reduce((s,v) => s + (v-m)**2, 0) / (a.length-1)); }
 function median(a) { if (!a.length) return 0; const s = [...a].sort((x,y) => x-y); const m = Math.floor(s.length/2); return s.length%2 ? s[m] : (s[m-1]+s[m])/2; }
+function fmtNum(v, dec) { return v != null && !isNaN(v) ? v.toFixed(dec) : '--'; }
+function fmtSign(v, dec) { return v != null && !isNaN(v) ? (v >= 0 ? '+' : '') + v.toFixed(dec) : '--'; }
 
 function isoToDisplay(d) {
   // "2026-03-19" → "03-19-2026"
@@ -538,7 +540,7 @@ async function fetchProfiles() {
   _profiles = await SwingDoctorAPI.getProfiles();
   if (!_profiles.length) {
     // Create a default profile
-    const p = await SwingDoctorAPI.createProfile({ name: 'Shane' });
+    const p = await SwingDoctorAPI.createProfile({ name: 'My Profile' });
     _profiles = [p];
   }
   // Restore or set active profile
@@ -861,6 +863,7 @@ async function rebuildData() {
     }
 
     DATA = buildDataFromShots(allShots, _sessionListCache);
+    _fullBagCache = null; // invalidate bag cache on data rebuild
     document.getElementById('emptyState').style.display = 'none';
     document.getElementById('mainContent').style.display = '';
 
@@ -889,8 +892,21 @@ async function handleFileImport(event) {
     const file = fileList[fi];
     showToast(`Uploading ${fi + 1} of ${fileList.length}: ${file.name}`);
     try {
-      await SwingDoctorAPI.uploadCSV(profileId, file);
-      imported++;
+      const result = await SwingDoctorAPI.uploadCSV(profileId, file);
+      // Handle date warning — backend detected date mismatch
+      if (result && result.status === 'date_warning') {
+        const useDate = confirm(
+          `This file contains data from ${result.parsed_date}, not today.\n\n` +
+          `Click OK to import with date ${result.parsed_date}.\n` +
+          `Click Cancel to skip this file.`
+        );
+        if (useDate) {
+          await SwingDoctorAPI.uploadCSV(profileId, file, { overrideDate: result.parsed_date });
+          imported++;
+        }
+      } else {
+        imported++;
+      }
     } catch (e) {
       console.error('Upload failed:', file.name, e);
       errors.push(file.name + ': ' + (e.message || JSON.stringify(e)));
@@ -904,6 +920,19 @@ async function handleFileImport(event) {
     showToast(`Uploaded ${imported} file${imported !== 1 ? 's' : ''}`);
   }
   await rebuildData();
+}
+
+// ─── Export Data ───
+async function handleExportData() {
+  const profileId = getActiveProfileId();
+  if (!profileId) { showToast('Select a profile first'); return; }
+  try {
+    showToast('Exporting data...');
+    await SwingDoctorAPI.exportCSV(profileId);
+    showToast('Export complete');
+  } catch (e) {
+    showToast('Export failed: ' + e.message);
+  }
 }
 
 // ─── Migration (localStorage/IndexedDB → API) ───
@@ -1051,7 +1080,10 @@ function buildClubSelector() {
 }
 function selectClub(club) { selectedClub = club; document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.textContent === club)); updateDashboard(); }
 
+let _activeTab = 'overview';
+
 function switchTab(tab) {
+  _activeTab = tab;
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   TAB_LIST.forEach(t => document.getElementById('tab-' + t).classList.toggle('section-hidden', t !== tab));
   setTimeout(() => updateDashboard(), 50);
@@ -1064,8 +1096,18 @@ function updateDashboard() {
   const active = fs.filter(s => s.filtered);
   const label = dateFilterMode === 'all' ? 'all time' : dateFilterMode.startsWith('month:') ? dateFilterMode.split(':')[1] : dateFilterMode.split(':')[1];
   document.getElementById('subtitle').textContent = `${active.length} shots \u00b7 ${fss.length} sessions \u00b7 ${label} \u00b7 ${DATA.fileCount} files`;
-  updateKPIs(fs); updateTrendChart(fss); updateDistChart(fs); updateYardageChart(fs);
-  updateYardageTable(fs); updateScatterChart(fs); updateSessionTable(fss); updateProgressTab(); updateManageTab(); updateProfileTab();
+  updateKPIs(fs);
+
+  // Only render the active tab's charts/tables to avoid unnecessary DOM work
+  switch (_activeTab) {
+    case 'overview':    updateTrendChart(fss); updateDistChart(fs); break;
+    case 'progress':    updateProgressTab(); break;
+    case 'yardage':     updateYardageChart(fs); updateYardageTable(fs); break;
+    case 'dispersion':  updateScatterChart(fs); break;
+    case 'sessions':    updateSessionTable(fss); break;
+    case 'manage':      updateManageTab(); break;
+    case 'profile':     updateProfileTab(); break;
+  }
 }
 
 // ─── KPIs ───
@@ -1105,7 +1147,14 @@ function updateDistChart(allShots) {
 }
 
 // ─── Full bag with estimated clubs ───
+let _fullBagCache = null;
+let _fullBagCacheKey = null;
+
 function buildFullBag(allShots) {
+  // Cache by shot count + club filter to avoid recomputing 3x per render
+  const cacheKey = allShots.length + '|' + selectedClub + '|' + dateFilterMode;
+  if (_fullBagCache && _fullBagCacheKey === cacheKey) return _fullBagCache;
+
   // Count ALL shots per club (before filtering) for kept% calculation
   const allByClub = {}; allShots.forEach(s => { if (s.carry != null && s.carry > 0) (allByClub[s.club] = allByClub[s.club] || []).push(s); });
   const cm = {}; allShots.filter(s => s.filtered).forEach(s => { (cm[s.club] = cm[s.club] || []).push(s); });
@@ -1133,7 +1182,7 @@ function buildFullBag(allShots) {
   }
 
   const known = Object.values(real).sort((a, b) => (BAG_ORDER[a.club] ?? 99) - (BAG_ORDER[b.club] ?? 99));
-  if (known.length < 2) return known;
+  if (known.length < 2) { _fullBagCache = known; _fullBagCacheKey = cacheKey; return known; }
 
   const firstIdx = BAG_ORDER[known[0].club] ?? 0;
   const lastIdx = BAG_ORDER[known[known.length - 1].club] ?? FULL_BAG.length - 1;
@@ -1161,6 +1210,7 @@ function buildFullBag(allShots) {
       });
     }
   }
+  _fullBagCache = result; _fullBagCacheKey = cacheKey;
   return result;
 }
 
@@ -1219,8 +1269,6 @@ function updateYardageTable(allShots) {
   const bag = buildFullBag(allShots);
   for (let i = 0; i < bag.length - 1; i++) bag[i].gap = bag[i].carryAvg - bag[i + 1].carryAvg;
   const e = s => s.estimated;
-  const d = (v, dec) => v != null && !isNaN(v) ? v.toFixed(dec) : '--';
-  const sign = (v, dec) => v != null && !isNaN(v) ? (v >= 0 ? '+' : '') + v.toFixed(dec) : '--';
   const FALLBACK_TARGETS = {'Driver':230,'3 Wood':215,'2 Hybrid':205,'3 Hybrid':198,'4 Hybrid':188,'5 Iron':178,'6 Iron':158,'7 Iron':148,'8 Iron':138,'9 Iron':128,'PW':118,'GW':108,'UW':98,'SW':88};
   // Use profile club targets if set, otherwise fall back to defaults
   const profileClubs = (getActiveProfile() || {}).clubs || [];
@@ -1240,20 +1288,20 @@ function updateYardageTable(allShots) {
       const keptPct = (!e(s) && s.totalShots) ? Math.round(100 * s.shotCount / s.totalShots) : null;
       const keptStr = keptPct != null ? keptPct + '% (' + s.shotCount + '/' + s.totalShots + ')' : (e(s) ? '--' : s.shotCount);
       return `<tr${cls}><td style="text-align:left;font-weight:600">${s.club}${badge}</td>
-        <td class="carry-cell">${d(s.carryAvg,1)}</td>
-        <td>${d(s.totalAvg,0)}</td>
+        <td class="carry-cell">${fmtNum(s.carryAvg,1)}</td>
+        <td>${fmtNum(s.totalAvg,0)}</td>
         <td style="color:${TEXT3}">${target || '--'}</td>
         <td style="color:${deltaColor};font-weight:600">${deltaStr}</td>
         <td class="gap-cell">${s.gap ? s.gap.toFixed(0) : '--'}</td>
-        <td style="color:${TEXT2}">${e(s) ? '--' : d(s.carryStd,1)}</td>
-        <td>${d(s.ballSpeedAvg,0)}</td>
-        <td>${e(s) ? '--' : d(s.clubSpeedAvg,0)}</td>
-        <td>${d(s.spinRateAvg,0)}</td>
-        <td>${e(s) ? '--' : d(s.launchAngleAvg,1)+'&deg;'}</td>
-        <td>${e(s) ? '--' : d(s.apexAvg,0)}</td>
-        <td style="color:${TEXT2}">${e(s) ? '--' : sign(s.attackAngleAvg,1)+'&deg;'}</td>
-        <td style="color:${TEXT2}">${e(s) ? '--' : sign(s.clubPathAvg,1)+'&deg;'}</td>
-        <td style="color:${TEXT2}">${e(s) ? '--' : d(s.offlineAvg,1)}</td>
+        <td style="color:${TEXT2}">${e(s) ? '--' : fmtNum(s.carryStd,1)}</td>
+        <td>${fmtNum(s.ballSpeedAvg,0)}</td>
+        <td>${e(s) ? '--' : fmtNum(s.clubSpeedAvg,0)}</td>
+        <td>${fmtNum(s.spinRateAvg,0)}</td>
+        <td>${e(s) ? '--' : fmtNum(s.launchAngleAvg,1)+'&deg;'}</td>
+        <td>${e(s) ? '--' : fmtNum(s.apexAvg,0)}</td>
+        <td style="color:${TEXT2}">${e(s) ? '--' : fmtSign(s.attackAngleAvg,1)+'&deg;'}</td>
+        <td style="color:${TEXT2}">${e(s) ? '--' : fmtSign(s.clubPathAvg,1)+'&deg;'}</td>
+        <td style="color:${TEXT2}">${e(s) ? '--' : fmtNum(s.offlineAvg,1)}</td>
         <td style="color:${TEXT3};font-size:12px;white-space:nowrap">${keptStr}</td></tr>`;
     }).join('')}`;
 }
@@ -1308,13 +1356,12 @@ function updateScatterChart(allShots) {
 
 function updateSessionTable(sessions) {
   const sess=sessions.filter(s=>s.club===selectedClub).sort((a,b)=>a.date.localeCompare(b.date));
-  const sign = (v, dec) => v != null && !isNaN(v) ? (v >= 0 ? '+' : '') + v.toFixed(dec) : '--';
   document.getElementById('sessionTable').innerHTML=`<tr><th style="text-align:left">Date</th><th>Carry</th><th>Std</th><th>Ball Spd</th><th>Club Spd</th><th>Spin</th><th>Launch</th><th>Apex</th><th>AoA</th><th>Path</th><th>Offline</th><th>Shots</th></tr>
     ${sess.map(s=>`<tr><td>${s.label}</td>
     <td style="font-weight:600;color:${GREEN}">${s.carryAvg.toFixed(1)}</td><td>${s.carryStd.toFixed(1)}</td>
     <td>${s.ballSpeedAvg.toFixed(1)}</td><td>${s.clubSpeedAvg ? s.clubSpeedAvg.toFixed(0) : '--'}</td><td>${Math.round(s.spinRateAvg)}</td>
     <td>${s.launchAngleAvg.toFixed(1)}&deg;</td><td>${s.apexAvg ? s.apexAvg.toFixed(0) : '--'}</td>
-    <td style="color:${TEXT2}">${sign(s.attackAngleAvg,1)}&deg;</td><td style="color:${TEXT2}">${sign(s.clubPathAvg,1)}&deg;</td>
+    <td style="color:${TEXT2}">${fmtSign(s.attackAngleAvg,1)}&deg;</td><td style="color:${TEXT2}">${fmtSign(s.clubPathAvg,1)}&deg;</td>
     <td style="color:${TEXT2}">${s.offlineAbsAvg != null ? s.offlineAbsAvg.toFixed(1) : '--'}</td>
     <td style="color:${TEXT3}">${s.shotCount}</td></tr>`).join('')}`;
 }
@@ -1527,7 +1574,7 @@ function toggleTheme() {
   localStorage.setItem('g730-theme', next);
   updateThemeIcon(next);
   applyThemeMeta(next);
-  updateChartColors(next);
+  if (DATA) updateDashboard();
 }
 
 function updateThemeIcon(theme) {
@@ -1538,10 +1585,6 @@ function updateThemeIcon(theme) {
   } else {
     icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
   }
-}
-
-function updateChartColors(theme) {
-  if (DATA) updateDashboard();
 }
 
 function applyThemeMeta(theme) {
